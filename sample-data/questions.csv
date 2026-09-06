@@ -1,0 +1,7 @@
+question_id,topic,question_text
+Q1,Data Structures,Explain the difference between a stack and a queue.
+Q2,Networking,Describe how DNS resolution works.
+Q3,Data Structures,"What is a hash table, and how are collisions typically handled?"
+Q4,Databases,Explain the purpose of database normalization and describe the first three normal forms.
+Q5,Networking,Compare TCP and UDP and give one example use case for each.
+Q6,Operating Systems,What is a deadlock? Describe the four conditions necessary for one to occur.
