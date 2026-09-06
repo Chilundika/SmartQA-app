@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import FileUploader from "@/components/FileUploader";
@@ -9,6 +9,7 @@ import QuestionPreviewTable from "@/components/QuestionPreviewTable";
 import { parseStudents, type ParseStudentsResult } from "@/lib/parseStudents";
 import { parseQuestions, type ParseQuestionsResult } from "@/lib/parseQuestions";
 import { deleteSession, listSessions, saveSession, type SessionSummary } from "@/lib/sessionStorage";
+import { useMounted } from "@/lib/useMounted";
 import type { Session } from "@/types";
 
 type UploadState<R> =
@@ -27,13 +28,6 @@ function todayLocalIso(): string {
 function formatSavedAt(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
-}
-
-const noopSubscribe = () => () => {};
-
-/** false during SSR/hydration, true once running in the browser — without a setState-in-effect. */
-function useMounted(): boolean {
-  return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 
 export default function SessionSetupPage() {
