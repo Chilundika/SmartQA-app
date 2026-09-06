@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 
 import AddQuestionsPanel from "./AddQuestionsPanel";
-import MatchCard from "./MatchCard";
+import MatchCard, { type RevealMode } from "./MatchCard";
 import MatchHistoryList from "./MatchHistoryList";
 import SessionCounters from "./SessionCounters";
 import type { ParsedQuestion } from "@/lib/parseQuestions";
@@ -64,9 +64,14 @@ function ActiveSession({
 }) {
   // Not part of the persisted Session shape; falls back to "now" if the page was reloaded mid-match.
   const [matchStartedAt, setMatchStartedAt] = useState<string | null>(null);
+  // Purely visual: which columns of the match card are still "spinning". The real pair is already committed.
+  const [revealing, setRevealing] = useState<RevealMode>(null);
+  const [revealNonce, setRevealNonce] = useState(0);
+  const handleRevealed = useCallback(() => setRevealing(null), []);
 
-  const pendingStudents = session.students.filter((s) => s.status === "pending");
-  const pendingQuestions = session.questions.filter((q) => q.status === "pending");
+  // Memoized on the session arrays so the shuffle animation's candidate pools don't change identity mid-spin.
+  const pendingStudents = useMemo(() => session.students.filter((s) => s.status === "pending"), [session.students]);
+  const pendingQuestions = useMemo(() => session.questions.filter((q) => q.status === "pending"), [session.questions]);
   const current = session.currentMatch ?? null;
 
   // PRD §7 stopping conditions — only evaluated between matches.
@@ -87,10 +92,12 @@ function ActiveSession({
     if (result.status !== "MATCHED") return;
     setMatchStartedAt(new Date().toISOString());
     commit({ ...session, currentMatch: { student: result.student, question: result.question } });
+    setRevealNonce((n) => n + 1);
+    setRevealing("both");
   }
 
   function handleMarkComplete() {
-    if (!current) return;
+    if (!current || revealing) return;
     const now = new Date().toISOString();
     const student = { ...current.student, status: "completed" as const };
     const question = { ...current.question, status: "used" as const };
@@ -113,7 +120,7 @@ function ActiveSession({
   }
 
   function handleSkip() {
-    if (!current) return;
+    if (!current || revealing) return;
     const now = new Date().toISOString();
     // Both go back to the pending pool; the attempt is logged as "skipped" for the absence audit trail.
     const student = { ...current.student, status: "pending" as const };
@@ -139,8 +146,10 @@ function ActiveSession({
   // Keeps the student; the current question returns to the pool and is excluded from the re-pick.
   const reshufflePool = current ? pendingQuestions.filter((q) => q.id !== current.question.id) : [];
   function handleReshuffle() {
-    if (!current || reshufflePool.length === 0) return;
+    if (!current || revealing || reshufflePool.length === 0) return;
     commit({ ...session, currentMatch: { student: current.student, question: pickRandom(reshufflePool) } });
+    setRevealNonce((n) => n + 1);
+    setRevealing("question");
   }
 
   function handleAddQuestions(added: ParsedQuestion[]) {
@@ -218,6 +227,11 @@ function ActiveSession({
             <MatchCard
               student={current.student}
               question={current.question}
+              revealing={revealing}
+              revealNonce={revealNonce}
+              onRevealed={handleRevealed}
+              candidateStudents={pendingStudents}
+              candidateQuestions={pendingQuestions}
               canReshuffle={reshufflePool.length > 0}
               onMarkComplete={handleMarkComplete}
               onSkip={handleSkip}
