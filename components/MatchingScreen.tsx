@@ -219,6 +219,9 @@ function ActiveSession({
                 {pendingStudents.length} student{pendingStudents.length === 1 ? "" : "s"} still waiting. New questions
                 are merged into the pool without affecting completed matches.
               </p>
+              <Link href={summaryHref} className={`${bannerLinkClass} mb-4`}>
+                View summary
+              </Link>
               <AddQuestionsPanel existingIds={existingQuestionIds} onAdd={handleAddQuestions} />
             </Banner>
           )}
