@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import ExportButtons from "./ExportButtons";
+import ThemeToggle from "./ThemeToggle";
 import { formatMatchTime, sessionToSummaryRows } from "@/lib/exportCsv";
 import { deleteSession, loadSession } from "@/lib/sessionStorage";
 import { useMounted } from "@/lib/useMounted";
@@ -61,7 +62,8 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
               : `${completed} completed${skipped > 0 ? ` · ${skipped} skipped` : ""}`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <ThemeToggle />
           <Link
             href={matchingHref}
             className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
@@ -69,6 +71,13 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
             Back to matching
           </Link>
           <ExportButtons session={session} />
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Print
+          </button>
           <button
             type="button"
             onClick={handleStartNew}
@@ -133,7 +142,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
     </div>
   );

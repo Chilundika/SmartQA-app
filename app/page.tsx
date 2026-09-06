@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import FileUploader from "@/components/FileUploader";
 import StudentPreviewTable from "@/components/StudentPreviewTable";
 import QuestionPreviewTable from "@/components/QuestionPreviewTable";
+import ThemeToggle from "@/components/ThemeToggle";
 import { parseStudents, type ParseStudentsResult } from "@/lib/parseStudents";
 import { parseQuestions, type ParseQuestionsResult } from "@/lib/parseQuestions";
 import { deleteSession, listSessions, saveSession, type SessionSummary } from "@/lib/sessionStorage";
@@ -100,13 +101,16 @@ export default function SessionSetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <main className="mx-auto w-full max-w-4xl px-6 py-10">
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Random Student–Question Matcher</h1>
-          <p className="mt-1 text-sm text-zinc-600">
-            Set up a session by naming the module and loading your students and question bank.
-          </p>
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Random Student–Question Matcher</h1>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              Set up a session by naming the module and loading your students and question bank.
+            </p>
+          </div>
+          <ThemeToggle />
         </header>
 
         <div className="space-y-6">

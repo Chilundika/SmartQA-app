@@ -1,17 +1,19 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import AddQuestionsPanel from "./AddQuestionsPanel";
+import AddStudentsPanel from "./AddStudentsPanel";
 import MatchCard, { type RevealMode } from "./MatchCard";
 import MatchHistoryList from "./MatchHistoryList";
 import SessionCounters from "./SessionCounters";
+import ThemeToggle from "./ThemeToggle";
 import type { ParsedQuestion } from "@/lib/parseQuestions";
 import { beginMatch, pickRandom } from "@/lib/randomizer";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
 import { useMounted } from "@/lib/useMounted";
-import type { MatchRecord, Session } from "@/types";
+import type { MatchRecord, Session, Student } from "@/types";
 
 type SaveState = { ok: true; at: string } | { ok: false; error: string } | null;
 
@@ -50,7 +52,10 @@ export default function MatchingScreen({ sessionId }: { sessionId: string }) {
     setSaveState(result.ok ? { ok: true, at: result.savedAt } : { ok: false, error: result.error });
   }
 
-  return <ActiveSession session={session} saveState={saveState} commit={commit} />;
+  // Session is already on disk from setup / a previous save — show Saved on first paint, not only after a mutation.
+  const displaySave: SaveState = saveState ?? { ok: true, at: new Date().toISOString() };
+
+  return <ActiveSession session={session} saveState={displaySave} commit={commit} />;
 }
 
 function ActiveSession({
@@ -156,8 +161,45 @@ function ActiveSession({
     commit({ ...session, questions: [...session.questions, ...added] });
   }
 
+  function handleAddStudents(added: Student[]) {
+    commit({ ...session, students: [...session.students, ...added] });
+  }
+
+  function handleUndoLastMatch() {
+    const last = session.matches.at(-1);
+    if (!last || last.outcome !== "completed" || current || revealing) return;
+    commit({
+      ...session,
+      students: session.students.map((s) => (s.id === last.student.id ? { ...s, status: "pending" } : s)),
+      questions: session.questions.map((q) => (q.id === last.question.id ? { ...q, status: "pending" } : q)),
+      matches: session.matches.slice(0, -1),
+    });
+  }
+
   const existingQuestionIds = new Set(session.questions.map((q) => q.questionId));
+  const existingStudentNumbers = new Set(session.students.map((s) => s.studentNumber));
   const summaryHref = `/session/${session.sessionId}/summary`;
+  const canUndo = !current && !revealing && session.matches.at(-1)?.outcome === "completed";
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
+      if (target?.closest("button, a, [role='button']")) return;
+
+      if (e.code === "Space" && !current && stop === null) {
+        e.preventDefault();
+        handleBeginMatch();
+      }
+      if (e.key === "Enter" && current && !revealing) {
+        e.preventDefault();
+        handleMarkComplete();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   return (
     <Shell>
@@ -174,8 +216,9 @@ function ActiveSession({
             questionsRemaining={pendingQuestions.length}
             questionsTotal={session.questions.length}
           />
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-xs print:hidden">
             <SaveIndicator state={saveState} />
+            <ThemeToggle />
             <Link href={summaryHref} className="font-medium text-zinc-700 underline-offset-2 hover:underline">
               View Summary
             </Link>
@@ -197,10 +240,8 @@ function ActiveSession({
           {stop === "students" && (
             <Banner tone="done" title="All students have been tested. Session complete.">
               <Link href={summaryHref} className={bannerLinkClass}>View summary</Link>
-              <details className="mt-3 text-sm">
-                <summary className="cursor-pointer font-medium text-zinc-700">
-                  Remaining questions ({pendingQuestions.length}) — for reference
-                </summary>
+              <div className="mt-4 text-sm">
+                <p className="font-medium text-zinc-700">Remaining questions — for reference</p>
                 <ul className="mt-2 divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white">
                   {pendingQuestions.map((q) => (
                     <li key={q.id} className="px-3 py-2 text-zinc-700">
@@ -209,7 +250,13 @@ function ActiveSession({
                     </li>
                   ))}
                 </ul>
-              </details>
+              </div>
+              <div className="mt-4 border-t border-emerald-200 pt-4">
+                <p className="mb-2 text-sm text-emerald-900">
+                  Need to add a late arrival? Upload more students — completed matches stay as they are.
+                </p>
+                <AddStudentsPanel existingNumbers={existingStudentNumbers} onAdd={handleAddStudents} />
+              </div>
             </Banner>
           )}
 
@@ -253,9 +300,30 @@ function ActiveSession({
               <p className="mt-4 text-sm text-zinc-500">
                 {stop
                   ? "Matching is disabled — see the notice above."
-                  : "Randomly pairs one waiting student with one unused question."}
+                  : "Randomly pairs one waiting student with one unused question. Space begins a match; Enter marks complete."}
               </p>
+              {canUndo && (
+                <button
+                  type="button"
+                  onClick={handleUndoLastMatch}
+                  className="mt-4 text-sm font-medium text-zinc-600 underline-offset-2 hover:underline"
+                >
+                  Undo last match
+                </button>
+              )}
             </div>
+          )}
+
+          {stop !== "students" && (
+            <details className="rounded-lg border border-zinc-200 bg-white p-4 text-sm">
+              <summary className="cursor-pointer font-medium text-zinc-800">Add students mid-session</summary>
+              <p className="mt-2 text-zinc-600">
+                New names join the pending pool. Already-completed matches are not changed.
+              </p>
+              <div className="mt-3">
+                <AddStudentsPanel existingNumbers={existingStudentNumbers} onAdd={handleAddStudents} />
+              </div>
+            </details>
           )}
         </main>
 
@@ -267,7 +335,7 @@ function ActiveSession({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
     </div>
   );
