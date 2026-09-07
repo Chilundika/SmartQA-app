@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import FileUploader from "@/components/FileUploader";
 import StudentPreviewTable from "@/components/StudentPreviewTable";
 import QuestionPreviewTable from "@/components/QuestionPreviewTable";
+import RollCallLists from "@/components/RollCallLists";
 import ThemeToggle from "@/components/ThemeToggle";
 import { parseStudents, type ParseStudentsResult } from "@/lib/parseStudents";
 import { parseQuestions, type ParseQuestionsResult } from "@/lib/parseQuestions";
@@ -42,6 +43,10 @@ export default function SessionSetupPage() {
   const [questions, setQuestions] = useState<UploadState<ParseQuestionsResult>>({ status: "idle" });
   const [sessionsVersion, setSessionsVersion] = useState(0);
   const [startError, setStartError] = useState<string | null>(null);
+  const [listsOpen, setListsOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
+  // Synchronous lock so a second click/Enter in the same tick cannot mint another session.
+  const startingRef = useRef(false);
 
   const date = dateOverride ?? (mounted ? todayLocalIso() : "");
   const savedSessions = useMemo<SessionSummary[]>(
@@ -73,7 +78,11 @@ export default function SessionSetupPage() {
   const canStart = bothConfirmed && moduleName.trim().length > 0 && date.length > 0;
 
   function handleStart() {
+    if (startingRef.current) return;
     if (students.status !== "confirmed" || questions.status !== "confirmed") return;
+
+    startingRef.current = true;
+    setStarting(true);
     setStartError(null);
 
     const session: Session = {
@@ -88,6 +97,8 @@ export default function SessionSetupPage() {
 
     const saved = saveSession(session);
     if (!saved.ok) {
+      startingRef.current = false;
+      setStarting(false);
       setStartError(saved.error);
       return;
     }
@@ -101,7 +112,7 @@ export default function SessionSetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className={`flex-1 bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 ${listsOpen ? "print:hidden" : ""}`}>
       <main className="mx-auto w-full max-w-4xl px-6 py-10">
         <header className="mb-8 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -190,14 +201,26 @@ export default function SessionSetupPage() {
                 ? "Everything is loaded. You can start the session."
                 : "Enter a module name and confirm both files to start."}
             </p>
-            <button
-              type="button"
-              onClick={handleStart}
-              disabled={!canStart}
-              className="inline-flex items-center justify-center rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
-            >
-              Start Session
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {bothConfirmed && (
+                <button
+                  type="button"
+                  onClick={() => setListsOpen(true)}
+                  className="inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
+                >
+                  View Full Lists
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={!canStart || starting}
+                aria-busy={starting}
+                className="inline-flex items-center justify-center rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              >
+                {starting ? "Starting…" : "Start Session"}
+              </button>
+            </div>
           </div>
           {startError && (
             <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -243,6 +266,15 @@ export default function SessionSetupPage() {
           )}
         </section>
       </main>
+      {listsOpen && bothConfirmed && (
+        <RollCallLists
+          moduleName={moduleName.trim() || "Untitled session"}
+          dateLabel={date}
+          students={students.result.validRows}
+          questions={questions.result.validRows}
+          onClose={() => setListsOpen(false)}
+        />
+      )}
     </div>
   );
 }

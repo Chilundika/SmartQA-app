@@ -83,4 +83,12 @@ html.theme-contrast body {
   a[href]::after {
     content: none !important;
   }
+
+  .roll-call-overlay {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
 }

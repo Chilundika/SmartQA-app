@@ -7,6 +7,7 @@ import AddQuestionsPanel from "./AddQuestionsPanel";
 import AddStudentsPanel from "./AddStudentsPanel";
 import MatchCard, { type RevealMode } from "./MatchCard";
 import MatchHistoryList from "./MatchHistoryList";
+import RollCallLists from "./RollCallLists";
 import SessionCounters from "./SessionCounters";
 import ThemeToggle from "./ThemeToggle";
 import type { ParsedQuestion } from "@/lib/parseQuestions";
@@ -72,6 +73,7 @@ function ActiveSession({
   // Purely visual: which columns of the match card are still "spinning". The real pair is already committed.
   const [revealing, setRevealing] = useState<RevealMode>(null);
   const [revealNonce, setRevealNonce] = useState(0);
+  const [listsOpen, setListsOpen] = useState(false);
   const handleRevealed = useCallback(() => setRevealing(null), []);
 
   // Memoized on the session arrays so the shuffle animation's candidate pools don't change identity mid-spin.
@@ -203,6 +205,7 @@ function ActiveSession({
 
   return (
     <Shell>
+      <div className={listsOpen ? "print:hidden" : ""}>
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Matching session</p>
@@ -219,6 +222,13 @@ function ActiveSession({
           <div className="flex items-center gap-3 text-xs print:hidden">
             <SaveIndicator state={saveState} />
             <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => setListsOpen(true)}
+              className="font-medium text-zinc-700 underline-offset-2 hover:underline"
+            >
+              View Full Lists
+            </button>
             <Link href={summaryHref} className="font-medium text-zinc-700 underline-offset-2 hover:underline">
               View Summary
             </Link>
@@ -329,13 +339,23 @@ function ActiveSession({
 
         <MatchHistoryList matches={session.matches} />
       </div>
+      </div>
+      {listsOpen && (
+        <RollCallLists
+          moduleName={session.moduleName}
+          dateLabel={session.dateCreated}
+          students={session.students}
+          questions={session.questions}
+          onClose={() => setListsOpen(false)}
+        />
+      )}
     </Shell>
   );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="flex-1 bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
     </div>
   );
