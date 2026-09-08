@@ -14,6 +14,7 @@ import RollCallLists from "./RollCallLists";
 import SessionCounters from "./SessionCounters";
 import SoundToggle from "./SoundToggle";
 import ThemeToggle from "./ThemeToggle";
+import TopicCoverageChart from "./TopicCoverageChart";
 import { applyProjector, persistProjector, readProjector } from "@/lib/projector";
 import { COUNTDOWN_CHANGED_EVENT, resolveCountdownSeconds } from "@/lib/countdown";
 import type { ParsedQuestion } from "@/lib/parseQuestions";
@@ -221,6 +222,7 @@ function ActiveSession({
   const existingQuestionIds = new Set(session.questions.map((q) => q.questionId));
   const existingStudentNumbers = new Set(session.students.map((s) => s.studentNumber));
   const summaryHref = `/session/${session.sessionId}/summary`;
+  const publicHref = `/session/${session.sessionId}/public`;
   const canUndo = !current && !revealing && !paused && session.matches.at(-1)?.outcome === "completed";
   const completedCount = session.matches.filter((m) => m.outcome === "completed").length;
   const matchY = session.students.filter((s) => s.status !== "skipped").length;
@@ -329,6 +331,14 @@ function ActiveSession({
             </button>
             <Link href={summaryHref} className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden">
               View Summary
+            </Link>
+            <Link
+              href={publicHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
+            >
+              Student view
             </Link>
             <Link href="/" className="font-medium text-zinc-500 underline-offset-2 hover:underline projector:hidden">
               Setup
@@ -460,7 +470,8 @@ function ActiveSession({
           )}
         </main>
 
-        <div className="projector:hidden">
+        <div className="flex flex-col gap-4 projector:hidden lg:w-80 lg:shrink-0">
+          <TopicCoverageChart questions={session.questions} />
           <MatchHistoryList matches={session.matches} />
         </div>
       </div>

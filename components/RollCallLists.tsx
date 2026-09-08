@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Question, Student } from "@/types";
+import TopicCoverageChart from "./TopicCoverageChart";
 
 export type ListStudent = Pick<Student, "id" | "studentNumber" | "fullName" | "status">;
 export type ListQuestion = Pick<Question, "id" | "questionId" | "topic" | "questionText" | "status">;
@@ -205,6 +206,9 @@ export default function RollCallLists({
         ) : (
           <section>
             <h2 className="mb-3 hidden text-lg font-semibold print:block">Questions</h2>
+            <div className="mb-4 print:hidden">
+              <TopicCoverageChart questions={questions} />
+            </div>
             <label className="mb-3 block print:hidden">
               <span className="sr-only">Search questions</span>
               <input
