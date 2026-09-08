@@ -9,6 +9,15 @@ type Props = {
   onFileSelected: (file: File) => void;
 };
 
+const ACCEPT = [
+  ".csv",
+  ".xlsx",
+  ".xls",
+  "text/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+].join(",");
+
 export default function FileUploader({ label, fileName, busy = false, onFileSelected }: Props) {
   const inputId = useId();
 
@@ -23,7 +32,7 @@ export default function FileUploader({ label, fileName, busy = false, onFileSele
     <div className="flex flex-wrap items-center gap-3">
       <label
         htmlFor={inputId}
-        className={`inline-flex cursor-pointer items-center rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 ${
+        className={`inline-flex min-h-11 cursor-pointer items-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 ${
           busy ? "pointer-events-none opacity-50" : ""
         }`}
       >
@@ -32,7 +41,7 @@ export default function FileUploader({ label, fileName, busy = false, onFileSele
       <input
         id={inputId}
         type="file"
-        accept=".csv,.xlsx,.xls"
+        accept={ACCEPT}
         className="sr-only"
         disabled={busy}
         onChange={handleChange}

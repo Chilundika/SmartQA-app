@@ -97,14 +97,14 @@ export default function AddStudentsPanel({ existingNumbers, onAdd }: Props) {
                 onAdd(preview.fresh);
                 setState({ status: "idle" });
               }}
-              className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              className="inline-flex min-h-11 items-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
             >
               Confirm & add {preview.fresh.length} student{preview.fresh.length === 1 ? "" : "s"}
             </button>
             <button
               type="button"
               onClick={() => setState({ status: "idle" })}
-              className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-600 hover:text-zinc-900"
             >
               Cancel
             </button>

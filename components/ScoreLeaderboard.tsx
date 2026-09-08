@@ -26,11 +26,35 @@ export default function ScoreLeaderboard({
 
   return (
     <section className="mb-8">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-zinc-900">Leaderboard</h2>
-        <p className="text-xs text-zinc-500">{ranked.length} scored</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-zinc-500">{ranked.length} scored</p>
+          <button
+            type="button"
+            onClick={() => setDir((d) => (d === "desc" ? "asc" : "desc"))}
+            className="inline-flex min-h-11 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 md:hidden print:hidden"
+          >
+            Score {dir === "desc" ? "↓" : "↑"}
+          </button>
+        </div>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <ul className="space-y-2 md:hidden print:hidden">
+        {ranked.map((m, i) => (
+          <li key={m.matchId} className="flex items-start justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-xs tabular-nums text-zinc-500">#{i + 1}</p>
+              <p className="font-medium text-zinc-900">{m.student.fullName}</p>
+              <p className="font-mono text-xs text-zinc-500">{m.student.studentNumber}</p>
+              <p className="mt-1 text-sm text-zinc-700">{m.question.topic}</p>
+            </div>
+            <p className="shrink-0 text-lg font-semibold tabular-nums text-zinc-900">
+              {maxScore ? `${m.score} / ${maxScore}` : m.score}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm md:block print:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
@@ -41,7 +65,7 @@ export default function ScoreLeaderboard({
                 <button
                   type="button"
                   onClick={() => setDir((d) => (d === "desc" ? "asc" : "desc"))}
-                  className="font-medium underline-offset-2 hover:underline"
+                  className="inline-flex min-h-11 items-center font-medium underline-offset-2 hover:underline"
                 >
                   Score {dir === "desc" ? "↓" : "↑"}
                 </button>

@@ -113,7 +113,38 @@ html.projector body {
   background: var(--background);
 }
 
+/* Keep Mark Complete / Skip on-screen after a reveal on phones (not projector). */
+@media (max-width: 767px) {
+  html:not(.projector) .match-actions-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 0.08);
+  }
+
+  html:not(.projector) .match-actions-spacer {
+    display: block;
+    height: 5.75rem;
+  }
+
+  html:not(.projector) .match-actions-spacer.is-scoring {
+    height: 16.5rem;
+  }
+}
+
 @media print {
+  .match-actions-dock {
+    position: static !important;
+    box-shadow: none !important;
+  }
+
+  .match-actions-spacer {
+    display: none !important;
+  }
+
   html,
   body {
     background: #fff !important;
@@ -122,6 +153,14 @@ html.projector body {
 
   .print\:hidden {
     display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:block {
+    display: block !important;
   }
 
   a[href]::after {

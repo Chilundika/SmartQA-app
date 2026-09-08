@@ -17,11 +17,11 @@ export default function StudentHistoryDialog({ moduleName, studentNumber, studen
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center print:hidden">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4 print:hidden">
       <div
         role="dialog"
         aria-labelledby="student-history-title"
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border border-zinc-200 bg-white p-5 shadow-lg"
+        className="max-h-[min(85dvh,32rem)] w-full max-w-lg overflow-y-auto rounded-lg border border-zinc-200 bg-white p-5 shadow-lg"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -37,7 +37,7 @@ export default function StudentHistoryDialog({ moduleName, studentNumber, studen
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800"
           >
             Close
           </button>

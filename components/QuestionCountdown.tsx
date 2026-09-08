@@ -57,7 +57,7 @@ export default function QuestionCountdown({ durationSeconds, active, resetKey, f
       role="timer"
       aria-live={expired ? "assertive" : "polite"}
       aria-label={expired ? "Time is up" : `${formatCountdown(remaining)} remaining`}
-      className={`rounded-lg border px-4 py-3 projector:px-6 projector:py-5 ${
+      className={`rounded-lg border px-3 py-2 sm:px-4 sm:py-3 projector:px-6 projector:py-5 ${
         expired
           ? "animate-timer-pulse border-amber-400 bg-amber-50 text-amber-950"
           : urgent
@@ -68,7 +68,7 @@ export default function QuestionCountdown({ durationSeconds, active, resetKey, f
       <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 projector:text-sm">
         {expired ? "Time is up" : "Time remaining"}
       </p>
-      <p className="mt-0.5 font-mono text-3xl font-semibold tabular-nums tracking-tight projector:text-6xl">
+      <p className="mt-0.5 font-mono text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl projector:text-6xl">
         {formatCountdown(remaining)}
       </p>
       {expired && (

@@ -20,6 +20,12 @@ export const metadata: Metadata = {
   description: "Lecturer tool for oral exams, vivas, and in-class random questioning",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+};
+
 const themeInit = `(function(){try{var t=localStorage.getItem("rsm_theme");var r=document.documentElement;if(t==="dark")r.classList.add("dark");if(t==="contrast"){r.classList.add("dark","theme-contrast")}}catch(e){}})();`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

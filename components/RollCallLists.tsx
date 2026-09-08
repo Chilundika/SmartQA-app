@@ -98,11 +98,11 @@ export default function RollCallLists({
 
   return (
     <div className="roll-call-overlay fixed inset-0 z-40 overflow-y-auto bg-zinc-50 text-zinc-900">
-      <div className="mx-auto w-full max-w-6xl px-6 py-8">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Roll call / list preview</p>
-            <h1 className="text-2xl font-semibold tracking-tight">{moduleName || "Untitled session"}</h1>
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{moduleName || "Untitled session"}</h1>
             {dateLabel && <p className="mt-0.5 text-sm text-zinc-600">{dateLabel}</p>}
             <p className="mt-2 text-sm text-zinc-500">
               {excludeMode
@@ -110,18 +110,18 @@ export default function RollCallLists({
                 : "Status is shown for reference only. Ticking attendance does not change who can be matched."}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <div className="flex w-full flex-col gap-2 print:hidden sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
             >
               Print list
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800"
             >
               Close
             </button>
@@ -147,7 +147,7 @@ export default function RollCallLists({
                 value={studentQuery}
                 onChange={(e) => setStudentQuery(e.target.value)}
                 placeholder="Find a student by name or number"
-                className="w-full max-w-md rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                className="min-h-11 w-full max-w-md rounded-md border border-zinc-300 bg-white px-3 text-sm"
               />
             </label>
             <p className="mb-2 text-xs text-zinc-500 print:hidden">
@@ -157,7 +157,47 @@ export default function RollCallLists({
                   ? ` · ${ticked.size} marked absent`
                   : ` · ${ticked.size} ticked present (this device only)`)}
             </p>
-            <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+            <ul className="space-y-2 md:hidden print:hidden">
+              {visibleStudents.length === 0 ? (
+                <li className="rounded-lg border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-500">
+                  No students match this search.
+                </li>
+              ) : (
+                visibleStudents.map((s) => (
+                  <li key={s.id} className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <div className="flex items-start gap-3">
+                      <label className="flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={ticked.has(s.id)}
+                          onChange={() => togglePresent(s.id)}
+                          aria-label={
+                            excludeMode
+                              ? `Mark ${s.fullName} absent`
+                              : `Mark ${s.fullName} present for roll call`
+                          }
+                          className="h-5 w-5"
+                        />
+                      </label>
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => setHistoryStudent(s)}
+                          className="min-h-11 text-left font-medium text-zinc-900 underline-offset-2 hover:underline"
+                        >
+                          {s.fullName}
+                        </button>
+                        <p className="font-mono text-xs text-zinc-500">{s.studentNumber}</p>
+                        <div className="mt-2">
+                          <StatusBadge status={s.status} />
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 bg-white md:block print:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <tr>
@@ -181,24 +221,26 @@ export default function RollCallLists({
                     visibleStudents.map((s) => (
                       <tr key={s.id}>
                         <td className="px-4 py-2">
-                          <input
-                            type="checkbox"
-                            checked={ticked.has(s.id)}
-                            onChange={() => togglePresent(s.id)}
-                            aria-label={
-                              excludeMode
-                                ? `Mark ${s.fullName} absent`
-                                : `Mark ${s.fullName} present for roll call`
-                            }
-                            className="h-4 w-4"
-                          />
+                          <label className="inline-flex min-h-11 min-w-11 items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={ticked.has(s.id)}
+                              onChange={() => togglePresent(s.id)}
+                              aria-label={
+                                excludeMode
+                                  ? `Mark ${s.fullName} absent`
+                                  : `Mark ${s.fullName} present for roll call`
+                              }
+                              className="h-5 w-5"
+                            />
+                          </label>
                         </td>
                         <td className="px-4 py-2 font-mono text-zinc-800">{s.studentNumber}</td>
                         <td className="px-4 py-2 text-zinc-900">
                           <button
                             type="button"
                             onClick={() => setHistoryStudent(s)}
-                            className="text-left font-medium underline-offset-2 hover:underline print:hidden"
+                            className="inline-flex min-h-11 items-center text-left font-medium underline-offset-2 hover:underline print:hidden"
                           >
                             {s.fullName}
                           </button>
@@ -227,11 +269,31 @@ export default function RollCallLists({
                 value={questionQuery}
                 onChange={(e) => setQuestionQuery(e.target.value)}
                 placeholder="Find a question by id, topic, or text"
-                className="w-full max-w-md rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+                className="min-h-11 w-full max-w-md rounded-md border border-zinc-300 bg-white px-3 text-sm"
               />
             </label>
             <p className="mb-2 text-xs text-zinc-500 print:hidden">{visibleQuestions.length} shown</p>
-            <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+            <ul className="space-y-2 md:hidden print:hidden">
+              {visibleQuestions.length === 0 ? (
+                <li className="rounded-lg border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-500">
+                  No questions match this search.
+                </li>
+              ) : (
+                visibleQuestions.map((q) => (
+                  <li key={q.id} className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs text-zinc-500">{q.questionId}</span>
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
+                        {q.topic}
+                      </span>
+                      <StatusBadge status={q.status} />
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-900">{q.questionText}</p>
+                  </li>
+                ))
+              )}
+            </ul>
+            <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 bg-white md:block print:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <tr>
@@ -293,7 +355,7 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+      className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-md px-3 text-sm font-medium sm:flex-none ${
         active ? "bg-zinc-900 text-white" : "bg-white text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-50"
       }`}
     >

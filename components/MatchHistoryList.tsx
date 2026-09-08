@@ -23,7 +23,7 @@ export default function MatchHistoryList({ matches }: { matches: MatchRecord[] }
           type="button"
           onClick={() => setOpen(true)}
           aria-expanded={false}
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 lg:w-auto"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 lg:w-auto"
         >
           Show completed matches ({completed.length})
         </button>
@@ -41,7 +41,7 @@ export default function MatchHistoryList({ matches }: { matches: MatchRecord[] }
           type="button"
           onClick={() => setOpen(false)}
           aria-expanded
-          className="text-xs font-medium text-zinc-500 hover:text-zinc-900"
+          className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-zinc-500 hover:text-zinc-900"
         >
           Hide
         </button>

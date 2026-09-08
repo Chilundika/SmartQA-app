@@ -63,7 +63,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Session summary</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{session.moduleName}</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">{session.moduleName}</h1>
           <p className="mt-0.5 text-sm text-zinc-600">{session.dateCreated}</p>
           <p className="mt-2 text-sm text-zinc-600">
             {session.matches.length === 0
@@ -71,11 +71,11 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
               : `${completed} completed${skipped > 0 ? ` · ${skipped} skipped` : ""}`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <div className="flex w-full flex-col gap-2 print:hidden sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <ThemeToggle />
           <Link
             href={matchingHref}
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
             Back to matching
           </Link>
@@ -83,7 +83,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
             href={`/session/${session.sessionId}/public`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
             Student view
           </Link>
@@ -91,14 +91,14 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
           <button
             type="button"
             onClick={() => window.print()}
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
             Print
           </button>
           <button
             type="button"
             onClick={handleStartNew}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
           >
             Start New Session
           </button>
@@ -112,7 +112,49 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
           No completed or skipped matches yet. Return to matching to begin.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
+        <>
+          <ul className="space-y-2 md:hidden print:hidden">
+          {session.matches.map((m) => (
+            <li key={m.matchId} className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setHistoryStudent({
+                      studentNumber: m.student.studentNumber,
+                      fullName: m.student.fullName,
+                    })
+                  }
+                  className="min-h-11 text-left font-medium text-zinc-900 underline-offset-2 hover:underline"
+                >
+                  {m.student.fullName}
+                </button>
+                <span
+                  className={`mt-1 inline-block shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    m.outcome === "completed" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"
+                  }`}
+                >
+                  {m.outcome === "completed" ? "Completed" : "Skipped"}
+                </span>
+              </div>
+              <p className="font-mono text-xs text-zinc-500">{m.student.studentNumber}</p>
+              <p className="mt-2 text-sm text-zinc-900">{m.question.questionText}</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                <span className="font-mono">{m.question.questionId}</span> · {m.question.topic}
+                {hasScores && (
+                  <>
+                    {" "}
+                    ·{" "}
+                    {typeof m.score === "number" ? (maxScore ? `${m.score} / ${maxScore}` : m.score) : "—"}
+                  </>
+                )}
+                {" · "}
+                {formatMatchTime(m.completedAt ?? m.matchedAt)}
+              </p>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm md:block print:block">
           <table className="w-full text-left text-sm">
             <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
               <tr>
@@ -136,7 +178,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
                           fullName: m.student.fullName,
                         })
                       }
-                      className="text-left font-medium text-zinc-900 underline-offset-2 hover:underline print:hidden"
+                      className="inline-flex min-h-11 items-center text-left font-medium text-zinc-900 underline-offset-2 hover:underline print:hidden"
                     >
                       {m.student.fullName}
                     </button>
@@ -172,6 +214,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
       {historyStudent && (
         <StudentHistoryDialog
@@ -188,7 +231,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex-1 bg-zinc-50 text-zinc-900">
-      <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</div>
     </div>
   );
 }

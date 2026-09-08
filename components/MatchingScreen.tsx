@@ -300,71 +300,85 @@ function ActiveSession({
     <Shell>
       <ConfettiBurst active={celebrate} />
       <div className={listsOpen ? "print:hidden" : ""}>
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 projector:hidden">Matching session</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 projector:text-5xl">{session.moduleName}</h1>
-          <p className="mt-0.5 text-sm text-zinc-600 projector:hidden">{session.dateCreated}</p>
-          <p className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-zinc-900 projector:text-6xl" aria-live="polite">
-            Match {matchX} of {matchY}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
+      <header className="mb-4 flex flex-col gap-3 sm:mb-6 sm:gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="hidden text-xs font-medium uppercase tracking-wide text-zinc-500 sm:block projector:hidden">
+              Matching session
+            </p>
+            <h1 className="truncate text-lg font-semibold tracking-tight text-zinc-900 sm:text-2xl projector:text-5xl">
+              {session.moduleName}
+            </h1>
+            <p className="mt-0.5 hidden text-sm text-zinc-600 sm:block projector:hidden">{session.dateCreated}</p>
+            <p
+              className="mt-1 text-xl font-bold tabular-nums tracking-tight text-zinc-900 sm:mt-3 sm:text-3xl projector:text-6xl"
+              aria-live="polite"
+            >
+              Match {matchX} of {matchY}
+            </p>
+          </div>
           <SessionCounters
-            className="projector:fixed projector:right-4 projector:top-4 projector:z-40"
+            className="shrink-0 projector:fixed projector:right-4 projector:top-4 projector:z-40"
             studentsRemaining={pendingStudents.length}
             studentsTotal={session.students.length}
             questionsRemaining={pendingQuestions.length}
             questionsTotal={session.questions.length}
           />
-          <div className="flex items-center gap-3 text-xs print:hidden">
-            <span className="projector:hidden">
-              <SaveIndicator state={saveState} />
-            </span>
-            <SoundToggle />
-            <ThemeToggle />
-            <ProjectorToggle
-              on={projector}
-              onToggle={() => {
-                const next = !projector;
-                persistProjector(next);
-                setProjector(next);
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setPaused((p) => !p)}
-              aria-pressed={paused}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
-                paused
-                  ? "bg-amber-600 text-white hover:bg-amber-700"
-                  : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
-              }`}
-            >
-              {paused ? "Resume" : "Pause Session"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setListsOpen(true)}
-              className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
-            >
-              View Full Lists
-            </button>
-            <Link href={summaryHref} className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden">
-              View Summary
-            </Link>
-            <Link
-              href={publicHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
-            >
-              Student view
-            </Link>
-            <Link href="/" className="font-medium text-zinc-500 underline-offset-2 hover:underline projector:hidden">
-              Setup
-            </Link>
-          </div>
+        </div>
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 text-xs print:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          <span className="shrink-0 projector:hidden">
+            <SaveIndicator state={saveState} />
+          </span>
+          <SoundToggle />
+          <ThemeToggle />
+          <ProjectorToggle
+            on={projector}
+            onToggle={() => {
+              const next = !projector;
+              persistProjector(next);
+              setProjector(next);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setPaused((p) => !p)}
+            aria-pressed={paused}
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-md px-3 text-xs font-semibold ${
+              paused
+                ? "bg-amber-600 text-white hover:bg-amber-700"
+                : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
+            }`}
+          >
+            {paused ? "Resume" : "Pause"}
+            <span className="hidden sm:inline">{paused ? "" : " Session"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setListsOpen(true)}
+            className="inline-flex min-h-11 shrink-0 items-center px-2 font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
+          >
+            Full Lists
+          </button>
+          <Link
+            href={summaryHref}
+            className="inline-flex min-h-11 shrink-0 items-center px-2 font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
+          >
+            Summary
+          </Link>
+          <Link
+            href={publicHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 shrink-0 items-center px-2 font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
+          >
+            Student view
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex min-h-11 shrink-0 items-center px-2 font-medium text-zinc-500 underline-offset-2 hover:underline projector:hidden"
+          >
+            Setup
+          </Link>
         </div>
       </header>
 
@@ -378,7 +392,7 @@ function ActiveSession({
               <button
                 type="button"
                 onClick={() => setPaused(false)}
-                className="mt-3 rounded-md bg-amber-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-900"
+                className="mt-3 inline-flex min-h-11 items-center rounded-md bg-amber-800 px-3 text-sm font-medium text-white hover:bg-amber-900"
               >
                 Resume
               </button>
@@ -470,7 +484,7 @@ function ActiveSession({
                 type="button"
                 onClick={handleBeginMatch}
                 disabled={stop !== null || paused}
-                className="rounded-lg bg-zinc-900 px-10 py-5 text-xl font-semibold text-white shadow-md hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none projector:px-16 projector:py-8 projector:text-4xl"
+                className="inline-flex min-h-14 items-center rounded-lg bg-zinc-900 px-10 py-5 text-xl font-semibold text-white shadow-md hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none projector:px-16 projector:py-8 projector:text-4xl"
               >
                 Begin Match
               </button>
@@ -485,7 +499,7 @@ function ActiveSession({
                 <button
                   type="button"
                   onClick={handleUndoLastMatch}
-                  className="mt-4 text-sm font-medium text-zinc-600 underline-offset-2 hover:underline projector:hidden"
+                  className="mt-4 inline-flex min-h-11 items-center text-sm font-medium text-zinc-600 underline-offset-2 hover:underline projector:hidden"
                 >
                   Undo last match
                 </button>
@@ -495,7 +509,9 @@ function ActiveSession({
 
           {stop !== "students" && (
             <details className="rounded-lg border border-zinc-200 bg-white p-4 text-sm projector:hidden">
-              <summary className="cursor-pointer font-medium text-zinc-800">Add students mid-session</summary>
+              <summary className="min-h-11 cursor-pointer py-2 font-medium text-zinc-800">
+                Add students mid-session
+              </summary>
               <p className="mt-2 text-zinc-600">
                 New names join the pending pool. Already-completed matches are not changed.
               </p>
@@ -528,12 +544,15 @@ function ActiveSession({
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex-1 bg-zinc-50 text-zinc-900">
-      <div className="mx-auto w-full max-w-6xl px-6 py-8 projector:max-w-none projector:px-10 projector:py-12">{children}</div>
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-8 projector:max-w-none projector:px-10 projector:py-12">
+        {children}
+      </div>
     </div>
   );
 }
 
-const bannerLinkClass = "inline-block rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 projector:hidden";
+const bannerLinkClass =
+  "inline-flex min-h-11 items-center rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800 projector:hidden";
 
 function Banner({ tone, title, children }: { tone: "done" | "warn" | "paused"; title: string; children?: React.ReactNode }) {
   const tones = {

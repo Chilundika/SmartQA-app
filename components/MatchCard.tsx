@@ -181,9 +181,10 @@ export default function MatchCard({
   const buttonsOff = spinning || controlsDisabled;
 
   return (
+    <>
     <div className="rounded-xl border border-zinc-200 bg-white shadow-sm" aria-busy={spinning} aria-live="polite">
       <div className="grid gap-px bg-zinc-200 md:grid-cols-2">
-        <section className="overflow-hidden bg-white p-6 projector:p-10">
+        <section className="overflow-hidden bg-white p-4 sm:p-6 projector:p-10">
           <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Student
             {studentSpinning && (
@@ -192,18 +193,26 @@ export default function MatchCard({
           </p>
           {studentSpinning ? (
             <div key={`s-${tick}`} className="animate-shuffle-tick">
-              <p className="mt-2 font-mono text-lg text-zinc-400 projector:text-2xl">{shownStudent.studentNumber}</p>
-              <p className="mt-1 text-3xl font-semibold leading-tight text-zinc-400 projector:text-6xl">{shownStudent.fullName}</p>
+              <p className="mt-1 font-mono text-sm text-zinc-400 sm:mt-2 sm:text-lg projector:text-2xl">
+                {shownStudent.studentNumber}
+              </p>
+              <p className="mt-0.5 text-xl font-semibold leading-tight text-zinc-400 sm:mt-1 sm:text-3xl projector:text-6xl">
+                {shownStudent.fullName}
+              </p>
             </div>
           ) : (
             <div key={`s-settled-${shownStudent.id}-${revealNonce}`} className="animate-reveal">
-              <p className="mt-2 font-mono text-lg text-zinc-600 projector:text-2xl">{shownStudent.studentNumber}</p>
-              <p className="mt-1 text-3xl font-semibold leading-tight text-zinc-900 projector:text-6xl">{shownStudent.fullName}</p>
+              <p className="mt-1 font-mono text-sm text-zinc-600 sm:mt-2 sm:text-lg projector:text-2xl">
+                {shownStudent.studentNumber}
+              </p>
+              <p className="mt-0.5 text-xl font-semibold leading-tight text-zinc-900 sm:mt-1 sm:text-3xl projector:text-6xl">
+                {shownStudent.fullName}
+              </p>
             </div>
           )}
         </section>
 
-        <section className="overflow-hidden bg-white p-6 projector:p-10">
+        <section className="overflow-hidden bg-white p-4 sm:p-6 projector:p-10">
           <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Question
             {questionSpinning && (
@@ -217,7 +226,7 @@ export default function MatchCard({
                   {shownQuestion.topic}
                 </span>
               </div>
-              <p className="mt-3 text-2xl font-medium leading-snug text-zinc-300">···</p>
+              <p className="mt-2 text-lg font-medium leading-snug text-zinc-300 sm:mt-3 sm:text-2xl">···</p>
             </div>
           ) : (
             <div key={`q-settled-${shownQuestion.id}-${revealNonce}`} className="animate-reveal">
@@ -227,15 +236,17 @@ export default function MatchCard({
                 </span>
                 <span className="font-mono text-sm text-zinc-500">{shownQuestion.questionId}</span>
               </div>
-              <p className="mt-3 text-2xl font-medium leading-snug text-zinc-900 projector:text-5xl">{shownQuestion.questionText}</p>
+              <p className="mt-2 max-h-[min(9.5rem,28vh)] overflow-y-auto text-lg font-medium leading-snug text-zinc-900 sm:mt-3 sm:max-h-none sm:text-2xl projector:max-h-none projector:text-5xl">
+                {shownQuestion.questionText}
+              </p>
             </div>
           )}
         </section>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
+      <div className="match-actions-dock border-t border-zinc-200 bg-zinc-50 px-4 py-3 sm:px-6 sm:py-4">
         {completeStep && !spinning && maxScore !== null ? (
-          <div className="flex w-full flex-col gap-3">
+          <div className="flex max-h-[min(70dvh,22rem)] w-full flex-col gap-3 overflow-y-auto">
             <p className="text-sm font-medium text-zinc-800">
               Score this answer <span className="font-normal text-zinc-500">(0–{maxScore})</span>
             </p>
@@ -245,7 +256,7 @@ export default function MatchCard({
                 aria-label="Decrease score"
                 disabled={controlsDisabled || (pickedScore ?? 0) <= 0}
                 onClick={() => onPickedScore(Math.max(0, (pickedScore ?? 0) - 1))}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 −
               </button>
@@ -265,14 +276,14 @@ export default function MatchCard({
                   }
                   onPickedScore(Math.min(maxScore, Math.max(0, Math.round(n))));
                 }}
-                className="w-20 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-center text-sm font-semibold tabular-nums"
+                className="h-11 w-20 rounded-md border border-zinc-300 bg-white px-2 text-center text-sm font-semibold tabular-nums"
               />
               <button
                 type="button"
                 aria-label="Increase score"
                 disabled={controlsDisabled || (pickedScore ?? 0) >= maxScore}
                 onClick={() => onPickedScore(Math.min(maxScore, (pickedScore ?? 0) + 1))}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 +
               </button>
@@ -284,7 +295,7 @@ export default function MatchCard({
                 value={pickedScore ?? 0}
                 disabled={controlsDisabled}
                 onChange={(e) => onPickedScore(Number(e.target.value))}
-                className="min-w-48 flex-1"
+                className="h-11 min-w-0 flex-1 basis-full sm:min-w-48 sm:basis-auto"
                 aria-label={`Score out of ${maxScore}`}
               />
               <span className="text-sm tabular-nums text-zinc-600">
@@ -295,7 +306,7 @@ export default function MatchCard({
               <button
                 type="button"
                 onClick={() => onMarkComplete(pickedScore ?? 0)}
-                className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed projector:px-8 projector:py-4 projector:text-2xl"
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed sm:flex-none projector:px-8 projector:py-4 projector:text-2xl"
                 disabled={controlsDisabled}
               >
                 Confirm complete
@@ -303,42 +314,51 @@ export default function MatchCard({
               <button
                 type="button"
                 onClick={onCancelComplete}
-                className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 Back
               </button>
             </div>
           </div>
         ) : (
-          <>
-            <button
-              type="button"
-              onClick={onRequestComplete}
-              disabled={buttonsOff}
-              className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:shadow-none projector:px-8 projector:py-4 projector:text-2xl"
-            >
-              Mark Complete
-            </button>
-            <button
-              type="button"
-              onClick={onSkip}
-              disabled={buttonsOff}
-              className="rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:shadow-none projector:px-8 projector:py-4 projector:text-xl"
-            >
-              Skip / Student Absent
-            </button>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <div className="flex w-full gap-2 sm:w-auto sm:flex-1">
+              <button
+                type="button"
+                onClick={onRequestComplete}
+                disabled={buttonsOff}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:shadow-none sm:flex-none sm:px-5 projector:px-8 projector:py-4 projector:text-2xl"
+              >
+                Mark Complete
+              </button>
+              <button
+                type="button"
+                onClick={onSkip}
+                disabled={buttonsOff}
+                aria-label="Skip / Student Absent"
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:shadow-none sm:flex-none sm:px-5 projector:px-8 projector:py-4 projector:text-xl"
+              >
+                <span className="sm:hidden">Skip</span>
+                <span className="hidden sm:inline">Skip / Student Absent</span>
+              </button>
+            </div>
             <button
               type="button"
               onClick={onReshuffle}
               disabled={!canReshuffle || buttonsOff}
               title={canReshuffle ? "Keep this student, pick a different question" : "No other questions left to pick from"}
-              className="ml-auto text-sm font-medium text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300 projector:hidden"
+              className="inline-flex min-h-11 items-center justify-center px-3 text-sm font-medium text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300 sm:ml-auto projector:hidden"
             >
               Reshuffle Question
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>
+      <div
+        className={`match-actions-spacer hidden ${completeStep && !spinning && maxScore !== null ? "is-scoring" : ""}`}
+        aria-hidden
+      />
+    </>
   );
 }
