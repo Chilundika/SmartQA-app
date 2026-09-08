@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Question, Student } from "@/types";
+import StudentHistoryDialog from "./StudentHistoryDialog";
 import TopicCoverageChart from "./TopicCoverageChart";
 
 export type ListStudent = Pick<Student, "id" | "studentNumber" | "fullName" | "status">;
@@ -56,6 +57,7 @@ export default function RollCallLists({
   const [studentQuery, setStudentQuery] = useState("");
   const [questionQuery, setQuestionQuery] = useState("");
   const [present, setPresent] = useState<ReadonlySet<string>>(() => new Set());
+  const [historyStudent, setHistoryStudent] = useState<ListStudent | null>(null);
 
   const sortedStudents = useMemo(
     () => [...students].sort((a, b) => compareStudentNumber(a.studentNumber, b.studentNumber)),
@@ -192,7 +194,16 @@ export default function RollCallLists({
                           />
                         </td>
                         <td className="px-4 py-2 font-mono text-zinc-800">{s.studentNumber}</td>
-                        <td className="px-4 py-2 text-zinc-900">{s.fullName}</td>
+                        <td className="px-4 py-2 text-zinc-900">
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStudent(s)}
+                            className="text-left font-medium underline-offset-2 hover:underline print:hidden"
+                          >
+                            {s.fullName}
+                          </button>
+                          <span className="hidden print:inline">{s.fullName}</span>
+                        </td>
                         <td className="px-4 py-2">
                           <StatusBadge status={s.status} />
                         </td>
@@ -255,6 +266,14 @@ export default function RollCallLists({
           </section>
         )}
       </div>
+      {historyStudent && (
+        <StudentHistoryDialog
+          moduleName={moduleName}
+          studentNumber={historyStudent.studentNumber}
+          studentName={historyStudent.fullName}
+          onClose={() => setHistoryStudent(null)}
+        />
+      )}
     </div>
   );
 }

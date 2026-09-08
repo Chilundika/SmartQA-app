@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import FileUploader from "@/components/FileUploader";
@@ -364,7 +365,15 @@ export default function SessionSetupPage() {
 
         {/* Previous sessions */}
         <section className="mt-12 border-t border-zinc-200 pt-8">
-          <h2 className="text-lg font-semibold">Load previous session</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold">Load previous session</h2>
+            <Link
+              href={moduleName.trim() ? `/stats?module=${encodeURIComponent(moduleName.trim())}` : "/stats"}
+              className="text-sm font-medium text-zinc-700 underline-offset-2 hover:underline"
+            >
+              Module stats
+            </Link>
+          </div>
           {savedSessions.length === 0 ? (
             <p className="mt-2 text-sm text-zinc-500">No saved sessions on this device yet.</p>
           ) : (

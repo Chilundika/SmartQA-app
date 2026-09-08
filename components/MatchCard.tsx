@@ -23,10 +23,15 @@ type Props = {
   candidateStudents: Student[];
   candidateQuestions: Question[];
   canReshuffle: boolean;
-  onMarkComplete: () => void;
+  onMarkComplete: (score?: number) => void;
   onSkip: () => void;
   onReshuffle: () => void;
   controlsDisabled?: boolean;
+  completeStep: boolean;
+  pickedScore: number | undefined;
+  onPickedScore: (score: number | undefined) => void;
+  onRequestComplete: () => void;
+  onCancelComplete: () => void;
 };
 
 function pickDecoy<T extends { id: string }>(pool: T[], current: T, lastId?: string): T {
@@ -54,6 +59,11 @@ export default function MatchCard({
   onSkip,
   onReshuffle,
   controlsDisabled = false,
+  completeStep,
+  pickedScore,
+  onPickedScore,
+  onRequestComplete,
+  onCancelComplete,
 }: Props) {
   const [shownStudent, setShownStudent] = useState(() =>
     revealing === "both" ? pickDecoy(candidateStudents, student) : student,
@@ -221,31 +231,75 @@ export default function MatchCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
-        <button
-          type="button"
-          onClick={onMarkComplete}
-          disabled={buttonsOff}
-          className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:shadow-none projector:px-8 projector:py-4 projector:text-2xl"
-        >
-          Mark Complete
-        </button>
-        <button
-          type="button"
-          onClick={onSkip}
-          disabled={buttonsOff}
-          className="rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:shadow-none projector:px-8 projector:py-4 projector:text-xl"
-        >
-          Skip / Student Absent
-        </button>
-        <button
-          type="button"
-          onClick={onReshuffle}
-          disabled={!canReshuffle || buttonsOff}
-          title={canReshuffle ? "Keep this student, pick a different question" : "No other questions left to pick from"}
-          className="ml-auto text-sm font-medium text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300 projector:hidden"
-        >
-          Reshuffle Question
-        </button>
+        {completeStep && !spinning ? (
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+            <p className="text-sm font-medium text-zinc-800">Score this answer (optional)</p>
+            <div className="flex items-center gap-1" role="group" aria-label="Score from 1 to 5">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => onPickedScore(pickedScore === n ? undefined : n)}
+                  aria-pressed={pickedScore === n}
+                  aria-label={`${n} out of 5`}
+                  disabled={controlsDisabled}
+                  className={`h-9 w-9 rounded-md text-sm font-semibold disabled:cursor-not-allowed ${
+                    pickedScore === n
+                      ? "bg-amber-500 text-white"
+                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
+              <button
+                type="button"
+                onClick={() => onMarkComplete(pickedScore)}
+                className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed projector:px-8 projector:py-4 projector:text-2xl"
+                disabled={controlsDisabled}
+              >
+                Confirm complete
+              </button>
+              <button
+                type="button"
+                onClick={onCancelComplete}
+                className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onRequestComplete}
+              disabled={buttonsOff}
+              className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:shadow-none projector:px-8 projector:py-4 projector:text-2xl"
+            >
+              Mark Complete
+            </button>
+            <button
+              type="button"
+              onClick={onSkip}
+              disabled={buttonsOff}
+              className="rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:shadow-none projector:px-8 projector:py-4 projector:text-xl"
+            >
+              Skip / Student Absent
+            </button>
+            <button
+              type="button"
+              onClick={onReshuffle}
+              disabled={!canReshuffle || buttonsOff}
+              title={canReshuffle ? "Keep this student, pick a different question" : "No other questions left to pick from"}
+              className="ml-auto text-sm font-medium text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300 projector:hidden"
+            >
+              Reshuffle Question
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

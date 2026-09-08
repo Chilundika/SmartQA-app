@@ -187,3 +187,49 @@ export function writeSessionBlob(session: Session): boolean {
     return false;
   }
 }
+
+/** Case-insensitive, trimmed key so "CS201" and "cs201 " group as the same module. */
+export function normalizeModuleKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Read-only: every session blob on this device. Does not repair or write the index,
+ * so 16.2 / 16.3 can query without modifying stored session data.
+ */
+export function loadAllSessions(): Session[] {
+  const storage = getStorage();
+  if (!storage) return [];
+  const out: Session[] = [];
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i);
+    if (!key || !key.startsWith(SESSION_KEY_PREFIX)) continue;
+    const session = loadSession(key.slice(SESSION_KEY_PREFIX.length));
+    if (session) out.push(session);
+  }
+  return out;
+}
+
+/** Read-only: sessions whose moduleName matches after normalization. */
+export function loadSessionsForModule(moduleName: string): Session[] {
+  const key = normalizeModuleKey(moduleName);
+  if (!key) return [];
+  return loadAllSessions().filter((s) => normalizeModuleKey(s.moduleName) === key);
+}
+
+export function listSessionsByModule(moduleName: string): SessionSummary[] {
+  const key = normalizeModuleKey(moduleName);
+  if (!key) return [];
+  return listSessions().filter((s) => normalizeModuleKey(s.moduleName) === key);
+}
+
+/** Distinct module display names currently stored on this device. */
+export function listModuleNames(): string[] {
+  const seen = new Map<string, string>();
+  for (const session of loadAllSessions()) {
+    const key = normalizeModuleKey(session.moduleName);
+    if (!key) continue;
+    if (!seen.has(key)) seen.set(key, session.moduleName.trim());
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}

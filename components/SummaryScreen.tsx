@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import ExportButtons from "./ExportButtons";
+import ScoreLeaderboard from "./ScoreLeaderboard";
+import StudentHistoryDialog from "./StudentHistoryDialog";
 import ThemeToggle from "./ThemeToggle";
 import { formatMatchTime, sessionToSummaryRows } from "@/lib/exportCsv";
 import { deleteSession, loadSession } from "@/lib/sessionStorage";
@@ -14,6 +16,10 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const mounted = useMounted();
   const session = useMemo(() => (mounted ? loadSession(sessionId) : undefined), [mounted, sessionId]);
+  const [historyStudent, setHistoryStudent] = useState<{
+    studentNumber: string;
+    fullName: string;
+  } | null>(null);
 
   if (session === undefined) {
     return (
@@ -42,6 +48,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
   const rows = sessionToSummaryRows(session);
   const completed = session.matches.filter((m) => m.outcome === "completed").length;
   const skipped = session.matches.filter((m) => m.outcome === "skipped").length;
+  const hasScores = session.matches.some((m) => typeof m.score === "number");
   const matchingHref = `/session/${session.sessionId}`;
 
   function handleStartNew() {
@@ -96,6 +103,8 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
         </div>
       </header>
 
+      <ScoreLeaderboard matches={session.matches} />
+
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center text-sm text-zinc-500">
           No completed or skipped matches yet. Return to matching to begin.
@@ -109,6 +118,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
                 <th className="px-4 py-3 font-medium">Question</th>
                 <th className="px-4 py-3 font-medium">Topic</th>
                 <th className="px-4 py-3 font-medium">Outcome</th>
+                {hasScores && <th className="px-4 py-3 font-medium">Score</th>}
                 <th className="px-4 py-3 font-medium">Time</th>
               </tr>
             </thead>
@@ -116,7 +126,19 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
               {session.matches.map((m) => (
                 <tr key={m.matchId} className="align-top">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-zinc-900">{m.student.fullName}</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHistoryStudent({
+                          studentNumber: m.student.studentNumber,
+                          fullName: m.student.fullName,
+                        })
+                      }
+                      className="text-left font-medium text-zinc-900 underline-offset-2 hover:underline print:hidden"
+                    >
+                      {m.student.fullName}
+                    </button>
+                    <p className="hidden font-medium text-zinc-900 print:block">{m.student.fullName}</p>
                     <p className="font-mono text-xs text-zinc-500">{m.student.studentNumber}</p>
                   </td>
                   <td className="px-4 py-3">
@@ -135,6 +157,11 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
                       {m.outcome === "completed" ? "Completed" : "Skipped"}
                     </span>
                   </td>
+                  {hasScores && (
+                    <td className="px-4 py-3 tabular-nums text-zinc-800">
+                      {typeof m.score === "number" ? m.score : "—"}
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-4 py-3 text-zinc-600">
                     {formatMatchTime(m.completedAt ?? m.matchedAt)}
                   </td>
@@ -143,6 +170,14 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
             </tbody>
           </table>
         </div>
+      )}
+      {historyStudent && (
+        <StudentHistoryDialog
+          moduleName={session.moduleName}
+          studentNumber={historyStudent.studentNumber}
+          studentName={historyStudent.fullName}
+          onClose={() => setHistoryStudent(null)}
+        />
       )}
     </Shell>
   );

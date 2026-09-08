@@ -20,6 +20,8 @@ export type MatchRecord = {
   matchedAt: string;   // ISO timestamp
   completedAt?: string;
   outcome: "completed" | "skipped";
+  /** Optional 1–5 score, set at Mark Complete. Omitted when the lecturer skips scoring. */
+  score?: number;
 };
 
 export type Session = {

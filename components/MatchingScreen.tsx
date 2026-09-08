@@ -108,6 +108,8 @@ function ActiveSession({
   const [projector, setProjector] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [completeStep, setCompleteStep] = useState(false);
+  const [pickedScore, setPickedScore] = useState<number | undefined>(undefined);
   const completionSeenRef = useRef(false);
   const handleRevealed = useCallback(() => {
     setRevealing(null);
@@ -141,9 +143,11 @@ function ActiveSession({
     commit({ ...session, currentMatch: { student: result.student, question: result.question } });
     setRevealNonce((n) => n + 1);
     setRevealing("both");
+    setCompleteStep(false);
+    setPickedScore(undefined);
   }
 
-  function handleMarkComplete() {
+  function handleMarkComplete(score?: number) {
     if (!current || revealing || paused) return;
     const now = new Date().toISOString();
     const student = { ...current.student, status: "completed" as const };
@@ -156,6 +160,9 @@ function ActiveSession({
       completedAt: now,
       outcome: "completed",
     };
+    if (typeof score === "number" && score >= 1 && score <= 5) {
+      record.score = score;
+    }
     commit({
       ...session,
       students: session.students.map((s) => (s.id === student.id ? student : s)),
@@ -164,6 +171,8 @@ function ActiveSession({
       currentMatch: null,
     });
     setMatchStartedAt(null);
+    setCompleteStep(false);
+    setPickedScore(undefined);
   }
 
   function handleSkip() {
@@ -188,6 +197,8 @@ function ActiveSession({
       currentMatch: null,
     });
     setMatchStartedAt(null);
+    setCompleteStep(false);
+    setPickedScore(undefined);
   }
 
   // Keeps the student; the current question returns to the pool and is excluded from the re-pick.
@@ -198,6 +209,8 @@ function ActiveSession({
     commit({ ...session, currentMatch: { student: current.student, question: pickRandom(reshufflePool) } });
     setRevealNonce((n) => n + 1);
     setRevealing("question");
+    setCompleteStep(false);
+    setPickedScore(undefined);
   }
 
   function handleAddQuestions(added: ParsedQuestion[]) {
@@ -247,7 +260,8 @@ function ActiveSession({
       }
       if (e.key === "Enter" && current && !revealing) {
         e.preventDefault();
-        handleMarkComplete();
+        if (completeStep) handleMarkComplete(pickedScore);
+        else setCompleteStep(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -426,6 +440,14 @@ function ActiveSession({
                 onSkip={handleSkip}
                 onReshuffle={handleReshuffle}
                 controlsDisabled={paused}
+                completeStep={completeStep}
+                pickedScore={pickedScore}
+                onPickedScore={setPickedScore}
+                onRequestComplete={() => setCompleteStep(true)}
+                onCancelComplete={() => {
+                  setCompleteStep(false);
+                  setPickedScore(undefined);
+                }}
               />
             </div>
           ) : (
