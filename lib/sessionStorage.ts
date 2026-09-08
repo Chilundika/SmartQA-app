@@ -175,3 +175,15 @@ export function deleteSession(sessionId: string): boolean {
   }
   return existed;
 }
+
+/** Writes a session blob without bumping the index timestamp (used for bulk field patches). */
+export function writeSessionBlob(session: Session): boolean {
+  const storage = getStorage();
+  if (!storage) return false;
+  try {
+    storage.setItem(sessionKey(session.sessionId), JSON.stringify(session));
+    return true;
+  } catch {
+    return false;
+  }
+}

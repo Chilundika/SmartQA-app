@@ -30,4 +30,6 @@ export type Session = {
   questions: Question[];
   matches: MatchRecord[];
   currentMatch?: { student: Student; question: Question } | null;
+  /** Seconds per question after reveal settles. `0` disables the timer. Omitted on older sessions → 120. */
+  countdownSeconds?: number;
 };

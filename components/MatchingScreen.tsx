@@ -9,11 +9,13 @@ import ConfettiBurst from "./ConfettiBurst";
 import MatchCard, { type RevealMode } from "./MatchCard";
 import MatchHistoryList from "./MatchHistoryList";
 import ProjectorToggle from "./ProjectorToggle";
+import QuestionCountdown from "./QuestionCountdown";
 import RollCallLists from "./RollCallLists";
 import SessionCounters from "./SessionCounters";
 import SoundToggle from "./SoundToggle";
 import ThemeToggle from "./ThemeToggle";
 import { applyProjector, persistProjector, readProjector } from "@/lib/projector";
+import { COUNTDOWN_CHANGED_EVENT, resolveCountdownSeconds } from "@/lib/countdown";
 import type { ParsedQuestion } from "@/lib/parseQuestions";
 import { beginMatch, pickRandom } from "@/lib/randomizer";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
@@ -30,6 +32,24 @@ export default function MatchingScreen({ sessionId }: { sessionId: string }) {
   const initial = useMemo(() => (mounted ? loadSession(sessionId) : undefined), [mounted, sessionId]);
   const [override, setOverride] = useState<Session | null>(null);
   const [saveState, setSaveState] = useState<SaveState>(null);
+
+  useEffect(() => {
+    function syncCountdown() {
+      const latest = loadSession(sessionId);
+      if (!latest || typeof latest.countdownSeconds !== "number") return;
+      setOverride((prev) => {
+        if (!prev) return latest;
+        if (prev.countdownSeconds === latest.countdownSeconds) return prev;
+        return { ...prev, countdownSeconds: latest.countdownSeconds };
+      });
+    }
+    window.addEventListener("storage", syncCountdown);
+    window.addEventListener(COUNTDOWN_CHANGED_EVENT, syncCountdown);
+    return () => {
+      window.removeEventListener("storage", syncCountdown);
+      window.removeEventListener(COUNTDOWN_CHANGED_EVENT, syncCountdown);
+    };
+  }, [sessionId]);
 
   const session = override ?? initial;
 
@@ -53,8 +73,13 @@ export default function MatchingScreen({ sessionId }: { sessionId: string }) {
   }
 
   function commit(next: Session) {
-    setOverride(next);
-    const result = saveSession(next);
+    const latest = loadSession(next.sessionId);
+    const stamped =
+      latest && typeof latest.countdownSeconds === "number"
+        ? { ...next, countdownSeconds: latest.countdownSeconds }
+        : next;
+    setOverride(stamped);
+    const result = saveSession(stamped);
     setSaveState(result.ok ? { ok: true, at: result.savedAt } : { ok: false, error: result.error });
   }
 
@@ -81,6 +106,7 @@ function ActiveSession({
   const [listsOpen, setListsOpen] = useState(false);
   const [projector, setProjector] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [paused, setPaused] = useState(false);
   const completionSeenRef = useRef(false);
   const handleRevealed = useCallback(() => {
     setRevealing(null);
@@ -106,6 +132,7 @@ function ActiveSession({
           : null;
 
   function handleBeginMatch() {
+    if (paused) return;
     const result = beginMatch(session);
     if (result.status !== "MATCHED") return;
     unlockAudio();
@@ -116,7 +143,7 @@ function ActiveSession({
   }
 
   function handleMarkComplete() {
-    if (!current || revealing) return;
+    if (!current || revealing || paused) return;
     const now = new Date().toISOString();
     const student = { ...current.student, status: "completed" as const };
     const question = { ...current.question, status: "used" as const };
@@ -139,7 +166,7 @@ function ActiveSession({
   }
 
   function handleSkip() {
-    if (!current || revealing) return;
+    if (!current || revealing || paused) return;
     const now = new Date().toISOString();
     // Both go back to the pending pool; the attempt is logged as "skipped" for the absence audit trail.
     const student = { ...current.student, status: "pending" as const };
@@ -165,7 +192,7 @@ function ActiveSession({
   // Keeps the student; the current question returns to the pool and is excluded from the re-pick.
   const reshufflePool = current ? pendingQuestions.filter((q) => q.id !== current.question.id) : [];
   function handleReshuffle() {
-    if (!current || revealing || reshufflePool.length === 0) return;
+    if (!current || revealing || paused || reshufflePool.length === 0) return;
     unlockAudio();
     commit({ ...session, currentMatch: { student: current.student, question: pickRandom(reshufflePool) } });
     setRevealNonce((n) => n + 1);
@@ -182,7 +209,7 @@ function ActiveSession({
 
   function handleUndoLastMatch() {
     const last = session.matches.at(-1);
-    if (!last || last.outcome !== "completed" || current || revealing) return;
+    if (!last || last.outcome !== "completed" || current || revealing || paused) return;
     commit({
       ...session,
       students: session.students.map((s) => (s.id === last.student.id ? { ...s, status: "pending" } : s)),
@@ -194,9 +221,9 @@ function ActiveSession({
   const existingQuestionIds = new Set(session.questions.map((q) => q.questionId));
   const existingStudentNumbers = new Set(session.students.map((s) => s.studentNumber));
   const summaryHref = `/session/${session.sessionId}/summary`;
-  const canUndo = !current && !revealing && session.matches.at(-1)?.outcome === "completed";
+  const canUndo = !current && !revealing && !paused && session.matches.at(-1)?.outcome === "completed";
   const completedCount = session.matches.filter((m) => m.outcome === "completed").length;
-  const matchY = session.students.length;
+  const matchY = session.students.filter((s) => s.status !== "skipped").length;
   const matchX =
     stop === "students" || stop === "both"
       ? Math.min(completedCount, matchY)
@@ -209,6 +236,7 @@ function ActiveSession({
       const tag = target?.tagName;
       // PRD §12: shortcuts stay off while any text field (search, upload, module name) is focused.
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
+      if (paused) return;
       if (listsOpen) return;
 
       if (e.code === "Space" && !current && stop === null) {
@@ -282,6 +310,18 @@ function ActiveSession({
             />
             <button
               type="button"
+              onClick={() => setPaused((p) => !p)}
+              aria-pressed={paused}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                paused
+                  ? "bg-amber-600 text-white hover:bg-amber-700"
+                  : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
+              }`}
+            >
+              {paused ? "Resume" : "Pause Session"}
+            </button>
+            <button
+              type="button"
               onClick={() => setListsOpen(true)}
               className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
             >
@@ -299,6 +339,20 @@ function ActiveSession({
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <main className="flex-1 space-y-6">
+          {paused && (
+            <Banner tone="paused" title="Paused">
+              <p className="text-sm">
+                Matching is frozen. Begin Match and keyboard shortcuts are disabled until you resume.
+              </p>
+              <button
+                type="button"
+                onClick={() => setPaused(false)}
+                className="mt-3 rounded-md bg-amber-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-900"
+              >
+                Resume
+              </button>
+            </Banner>
+          )}
           {stop === "both" && (
             <Banner tone="done" title="Session complete — all students matched and all questions used.">
               <Link href={summaryHref} className={bannerLinkClass}>View summary</Link>
@@ -342,25 +396,34 @@ function ActiveSession({
           )}
 
           {current ? (
-            <MatchCard
-              student={current.student}
-              question={current.question}
-              revealing={revealing}
-              revealNonce={revealNonce}
-              onRevealed={handleRevealed}
-              candidateStudents={pendingStudents}
-              candidateQuestions={pendingQuestions}
-              canReshuffle={reshufflePool.length > 0}
-              onMarkComplete={handleMarkComplete}
-              onSkip={handleSkip}
-              onReshuffle={handleReshuffle}
-            />
+            <div className="space-y-3">
+              <QuestionCountdown
+                durationSeconds={resolveCountdownSeconds(session)}
+                active={!revealing}
+                frozen={paused}
+                resetKey={`${revealNonce}-${current.student.id}-${current.question.id}`}
+              />
+              <MatchCard
+                student={current.student}
+                question={current.question}
+                revealing={revealing}
+                revealNonce={revealNonce}
+                onRevealed={handleRevealed}
+                candidateStudents={pendingStudents}
+                candidateQuestions={pendingQuestions}
+                canReshuffle={reshufflePool.length > 0}
+                onMarkComplete={handleMarkComplete}
+                onSkip={handleSkip}
+                onReshuffle={handleReshuffle}
+                controlsDisabled={paused}
+              />
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center">
               <button
                 type="button"
                 onClick={handleBeginMatch}
-                disabled={stop !== null}
+                disabled={stop !== null || paused}
                 className="rounded-lg bg-zinc-900 px-10 py-5 text-xl font-semibold text-white shadow-md hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none projector:px-16 projector:py-8 projector:text-4xl"
               >
                 Begin Match
@@ -368,7 +431,9 @@ function ActiveSession({
               <p className="mt-4 text-sm text-zinc-500 projector:text-xl">
                 {stop
                   ? "Matching is disabled — see the notice above."
-                  : "Randomly pairs one waiting student with one unused question. Space begins a match; Enter marks complete."}
+                  : paused
+                    ? "Session is paused. Resume to begin the next match."
+                    : "Randomly pairs one waiting student with one unused question. Space begins a match; Enter marks complete."}
               </p>
               {canUndo && (
                 <button
@@ -423,10 +488,11 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 const bannerLinkClass = "inline-block rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 projector:hidden";
 
-function Banner({ tone, title, children }: { tone: "done" | "warn"; title: string; children?: React.ReactNode }) {
+function Banner({ tone, title, children }: { tone: "done" | "warn" | "paused"; title: string; children?: React.ReactNode }) {
   const tones = {
     done: "border-emerald-200 bg-emerald-50 text-emerald-900",
     warn: "border-amber-300 bg-amber-50 text-amber-900",
+    paused: "border-amber-400 bg-amber-100 text-amber-950",
   };
   return (
     <section role="status" className={`rounded-lg border p-5 ${tones[tone]}`}>

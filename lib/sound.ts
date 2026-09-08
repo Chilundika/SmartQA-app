@@ -65,3 +65,35 @@ export function playRevealChime(): void {
     /* autoplay policy / unsupported */
   }
 }
+
+/** Softer two-note cue when the per-question countdown hits zero. Respects the mute toggle. */
+export function playTimerCue(): void {
+  if (typeof window === "undefined") return;
+  if (readSoundMuted()) return;
+
+  try {
+    unlockAudio();
+    if (!audioCtx) return;
+    const ctx = audioCtx;
+    const now = ctx.currentTime;
+
+    function tone(freq: number, start: number, duration: number) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + start);
+      gain.gain.exponentialRampToValueAtTime(0.07, now + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + start);
+      osc.stop(now + start + duration);
+    }
+
+    tone(392.0, 0, 0.22);
+    tone(329.63, 0.2, 0.35);
+  } catch {
+    /* autoplay policy / unsupported */
+  }
+}

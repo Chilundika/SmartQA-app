@@ -16,6 +16,7 @@
   --animate-reveal: reveal 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-shuffle-tick: shuffle-tick 80ms ease-out both;
   --animate-confetti: confetti 2.4s ease-in forwards;
+  --animate-timer-pulse: timer-pulse 1.2s ease-in-out infinite;
   @keyframes reveal {
     from {
       opacity: 0;
@@ -46,12 +47,22 @@
       opacity: 0.15;
     }
   }
+  @keyframes timer-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(245 158 11 / 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 10px rgb(245 158 11 / 0);
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-reveal,
   .animate-shuffle-tick,
-  .animate-confetti {
+  .animate-confetti,
+  .animate-timer-pulse {
     animation: none;
   }
 }

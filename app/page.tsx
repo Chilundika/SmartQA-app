@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import FileUploader from "@/components/FileUploader";
@@ -8,6 +8,7 @@ import StudentPreviewTable from "@/components/StudentPreviewTable";
 import QuestionPreviewTable from "@/components/QuestionPreviewTable";
 import RollCallLists from "@/components/RollCallLists";
 import ThemeToggle from "@/components/ThemeToggle";
+import { applyConfirmedCountdownToAllSessions, readGlobalCountdownSeconds } from "@/lib/countdown";
 import { parseStudents, type ParseStudentsResult } from "@/lib/parseStudents";
 import { parseQuestions, type ParseQuestionsResult } from "@/lib/parseQuestions";
 import { deleteSession, listSessions, saveSession, type SessionSummary } from "@/lib/sessionStorage";
@@ -45,6 +46,12 @@ export default function SessionSetupPage() {
   const [startError, setStartError] = useState<string | null>(null);
   const [listsOpen, setListsOpen] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [countdownEnabled, setCountdownEnabled] = useState(true);
+  const [countdownDraft, setCountdownDraft] = useState("2");
+  const [countdownConfirmedMinutes, setCountdownConfirmedMinutes] = useState<number | null>(null);
+  const [countdownError, setCountdownError] = useState<string | null>(null);
+  const [countdownAppliedCount, setCountdownAppliedCount] = useState<number | null>(null);
+  const [absentIds, setAbsentIds] = useState<Set<string>>(() => new Set());
   // Synchronous lock so a second click/Enter in the same tick cannot mint another session.
   const startingRef = useRef(false);
 
@@ -55,6 +62,16 @@ export default function SessionSetupPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mounted, sessionsVersion],
   );
+
+  useEffect(() => {
+    if (!mounted) return;
+    const seconds = readGlobalCountdownSeconds();
+    if (seconds === null || seconds <= 0) return;
+    const minutes = Math.max(1, Math.round(seconds / 60));
+    setCountdownEnabled(true);
+    setCountdownDraft(String(minutes));
+    setCountdownConfirmedMinutes(minutes);
+  }, [mounted]);
 
   async function handleUpload<R>(
     file: File,
@@ -75,11 +92,22 @@ export default function SessionSetupPage() {
   }
 
   const bothConfirmed = students.status === "confirmed" && questions.status === "confirmed";
-  const canStart = bothConfirmed && moduleName.trim().length > 0 && date.length > 0;
+  const countdownReady = !countdownEnabled || countdownConfirmedMinutes !== null;
+  const canStart = bothConfirmed && moduleName.trim().length > 0 && date.length > 0 && countdownReady;
 
   function handleStart() {
     if (startingRef.current) return;
     if (students.status !== "confirmed" || questions.status !== "confirmed") return;
+
+    if (students.result.validRows.every((s) => absentIds.has(s.id))) {
+      setStartError("Every student is marked absent. Uncheck at least one to start.");
+      return;
+    }
+
+    if (countdownEnabled && countdownConfirmedMinutes === null) {
+      setStartError("Confirm the countdown minutes before starting.");
+      return;
+    }
 
     startingRef.current = true;
     setStarting(true);
@@ -89,10 +117,13 @@ export default function SessionSetupPage() {
       sessionId: crypto.randomUUID(),
       moduleName: moduleName.trim(),
       dateCreated: date,
-      students: students.result.validRows,
+      students: students.result.validRows.map((s) =>
+        absentIds.has(s.id) ? { ...s, status: "skipped" as const } : s,
+      ),
       questions: questions.result.validRows,
       matches: [],
       currentMatch: null,
+      countdownSeconds: countdownEnabled ? (countdownConfirmedMinutes ?? 2) * 60 : 0,
     };
 
     const saved = saveSession(session);
@@ -148,6 +179,101 @@ export default function SessionSetupPage() {
                 />
               </Field>
             </div>
+            <div className="mt-4 space-y-3 border-t border-zinc-100 pt-4">
+              <label className="flex items-center gap-2 text-sm text-zinc-800">
+                <input
+                  type="checkbox"
+                  checked={countdownEnabled}
+                  onChange={(e) => {
+                    setCountdownEnabled(e.target.checked);
+                    setCountdownError(null);
+                  }}
+                  className="h-4 w-4"
+                />
+                Countdown per question
+              </label>
+
+              {countdownEnabled && countdownConfirmedMinutes !== null ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <p className="text-sm text-emerald-900">
+                    <span className="font-medium">
+                      {countdownConfirmedMinutes} minute{countdownConfirmedMinutes === 1 ? "" : "s"} confirmed
+                    </span>
+                    <span className="text-emerald-700"> for each question</span>
+                    {countdownAppliedCount !== null && countdownAppliedCount > 0 && (
+                      <span className="text-emerald-700">
+                        {" "}
+                        · applied to {countdownAppliedCount} saved session
+                        {countdownAppliedCount === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountdownDraft(String(countdownConfirmedMinutes));
+                      setCountdownConfirmedMinutes(null);
+                      setCountdownAppliedCount(null);
+                      setCountdownError(null);
+                    }}
+                    className="text-sm font-medium text-emerald-800 underline-offset-2 hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : countdownEnabled ? (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <Field label="Minutes per question" htmlFor="countdown-minutes">
+                      <input
+                        id="countdown-minutes"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={60}
+                        step={1}
+                        value={countdownDraft}
+                        onChange={(e) => {
+                          setCountdownDraft(e.target.value);
+                          setCountdownError(null);
+                        }}
+                        placeholder="e.g. 2"
+                        className={`${inputClass} w-28`}
+                      />
+                    </Field>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const minutes = parseCountdownMinutes(countdownDraft);
+                        if (minutes === null) {
+                          setCountdownError("Enter a whole number of minutes between 1 and 60.");
+                          return;
+                        }
+                        setCountdownError(null);
+                        setCountdownConfirmedMinutes(minutes);
+                        setCountdownDraft(String(minutes));
+                        const applied = applyConfirmedCountdownToAllSessions(minutes * 60);
+                        setCountdownAppliedCount(applied);
+                      }}
+                      className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                    >
+                      Confirm countdown
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    Type the minutes you want, then confirm. That duration is used for every question, including in
+                    sessions already saved on this device. It does not auto-advance.
+                  </p>
+                  {countdownError && (
+                    <p role="alert" className="text-sm text-red-700">
+                      {countdownError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500">No per-question countdown will run in this session.</p>
+              )}
+            </div>
           </Card>
 
           {/* Step 2: students */}
@@ -164,7 +290,10 @@ export default function SessionSetupPage() {
               onConfirm={() =>
                 students.status === "preview" && setStudents({ ...students, status: "confirmed" })
               }
-              onReset={() => setStudents({ status: "idle" })}
+              onReset={() => {
+                setStudents({ status: "idle" });
+                setAbsentIds(new Set());
+              }}
               confirmLabel={(r) => `Confirm & Load ${r.validRows.length} students`}
               canConfirm={(r) => r.validRows.length > 0 && r.duplicates.length === 0}
               confirmedSummary={(r) => `${r.validRows.length} students loaded`}
@@ -198,8 +327,12 @@ export default function SessionSetupPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-zinc-600">
               {canStart
-                ? "Everything is loaded. You can start the session."
-                : "Enter a module name and confirm both files to start."}
+                ? absentIds.size > 0
+                  ? `Everything is loaded. ${absentIds.size} student${absentIds.size === 1 ? "" : "s"} marked absent will be skipped.`
+                  : "Everything is loaded. You can start the session."
+                : countdownEnabled && countdownConfirmedMinutes === null && bothConfirmed && moduleName.trim().length > 0
+                  ? "Confirm the countdown minutes to start."
+                  : "Enter a module name and confirm both files to start."}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {bothConfirmed && (
@@ -208,7 +341,7 @@ export default function SessionSetupPage() {
                   onClick={() => setListsOpen(true)}
                   className="inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
                 >
-                  View Full Lists
+                  View Full Lists / Mark absent
                 </button>
               )}
               <button
@@ -273,6 +406,16 @@ export default function SessionSetupPage() {
           students={students.result.validRows}
           questions={questions.result.validRows}
           onClose={() => setListsOpen(false)}
+          excludeMode
+          excludedIds={absentIds}
+          onToggleExcluded={(id) => {
+            setAbsentIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            });
+          }}
         />
       )}
     </div>
@@ -281,6 +424,14 @@ export default function SessionSetupPage() {
 
 const inputClass =
   "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500";
+
+function parseCountdownMinutes(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 1 || n > 60) return null;
+  return n;
+}
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (

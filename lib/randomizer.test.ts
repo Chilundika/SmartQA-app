@@ -71,6 +71,39 @@ for (let round = 1; round <= 3; round++) {
 
 console.log("\nAfter 3 rounds, beginMatch returns:", beginMatch(session).status);
 
-const ok = seenStudents.size === 3 && seenQuestions.size === 3;
+const skipSession: Session = {
+  sessionId: "skip-session",
+  moduleName: "Skip Test",
+  dateCreated: new Date().toISOString(),
+  students: [
+    { id: "s-1", studentNumber: "2021045678", fullName: "Jane Mwansa", status: "skipped" },
+    { id: "s-2", studentNumber: "2021045679", fullName: "Peter Banda", status: "pending" },
+    { id: "s-3", studentNumber: "2021045680", fullName: "Chipo Phiri", status: "skipped" },
+  ],
+  questions: questions.map((q) => ({ ...q, status: "pending" })),
+  matches: [],
+  currentMatch: null,
+};
+
+let skipOk = true;
+for (let i = 0; i < 5; i++) {
+  const r = beginMatch(skipSession);
+  if (r.status !== "MATCHED") {
+    skipOk = false;
+    break;
+  }
+  if (r.student.status !== "pending" || r.student.id !== "s-2") {
+    skipOk = false;
+    break;
+  }
+}
+
+console.log(
+  skipOk
+    ? "PASS: skipped students are never drawn."
+    : "FAIL: skipped student entered the pool.",
+);
+
+const ok = seenStudents.size === 3 && seenQuestions.size === 3 && skipOk;
 console.log(ok ? "\nPASS: 3 distinct students and 3 distinct questions matched." : "\nFAIL: repeats detected.");
 process.exitCode = ok ? 0 : 1;

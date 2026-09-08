@@ -14,6 +14,10 @@ type Props = {
   students: readonly ListStudent[];
   questions: readonly ListQuestion[];
   onClose: () => void;
+  /** Screen 1: ticking marks a student absent so they never enter the match pool. */
+  excludeMode?: boolean;
+  excludedIds?: ReadonlySet<string>;
+  onToggleExcluded?: (id: string) => void;
 };
 
 function matchesQuery(haystack: string, query: string): boolean {
@@ -33,11 +37,20 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /**
- * Screen 1a — roll call / list preview. Read-only for session status:
- * attendance ticks live only in this component's React state and are never
- * written to Session or used by beginMatch.
+ * Screen 1a — roll call / list preview.
+ * In excludeMode (before Start Session), Absent ticks are owned by the parent and applied as status: "skipped".
+ * During a live session, attendance ticks stay local and are never written to Session.
  */
-export default function RollCallLists({ moduleName, dateLabel, students, questions, onClose }: Props) {
+export default function RollCallLists({
+  moduleName,
+  dateLabel,
+  students,
+  questions,
+  onClose,
+  excludeMode = false,
+  excludedIds,
+  onToggleExcluded,
+}: Props) {
   const [tab, setTab] = useState<Tab>("students");
   const [studentQuery, setStudentQuery] = useState("");
   const [questionQuery, setQuestionQuery] = useState("");
@@ -66,6 +79,10 @@ export default function RollCallLists({ moduleName, dateLabel, students, questio
   }, [questions, questionQuery]);
 
   function togglePresent(id: string) {
+    if (excludeMode) {
+      onToggleExcluded?.(id);
+      return;
+    }
     setPresent((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -73,6 +90,8 @@ export default function RollCallLists({ moduleName, dateLabel, students, questio
       return next;
     });
   }
+
+  const ticked = excludeMode ? (excludedIds ?? new Set<string>()) : present;
 
   return (
     <div className="roll-call-overlay fixed inset-0 z-40 overflow-y-auto bg-zinc-50 text-zinc-900">
@@ -83,7 +102,9 @@ export default function RollCallLists({ moduleName, dateLabel, students, questio
             <h1 className="text-2xl font-semibold tracking-tight">{moduleName || "Untitled session"}</h1>
             {dateLabel && <p className="mt-0.5 text-sm text-zinc-600">{dateLabel}</p>}
             <p className="mt-2 text-sm text-zinc-500">
-              Status is shown for reference only. Ticking attendance does not change who can be matched.
+              {excludeMode
+                ? "Tick students who are known absent. They are skipped when you start and never enter the random pool."
+                : "Status is shown for reference only. Ticking attendance does not change who can be matched."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -128,14 +149,17 @@ export default function RollCallLists({ moduleName, dateLabel, students, questio
             </label>
             <p className="mb-2 text-xs text-zinc-500 print:hidden">
               {visibleStudents.length} shown
-              {present.size > 0 && ` · ${present.size} ticked present (this device only)`}
+              {ticked.size > 0 &&
+                (excludeMode
+                  ? ` · ${ticked.size} marked absent`
+                  : ` · ${ticked.size} ticked present (this device only)`)}
             </p>
             <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
               <table className="w-full text-left text-sm">
                 <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <tr>
                     <th className="w-12 px-4 py-3 font-medium">
-                      <span className="print:hidden">Present</span>
+                      <span className="print:hidden">{excludeMode ? "Absent" : "Present"}</span>
                       <span className="hidden print:inline">✓</span>
                     </th>
                     <th className="px-4 py-3 font-medium">Student number</th>
@@ -156,9 +180,13 @@ export default function RollCallLists({ moduleName, dateLabel, students, questio
                         <td className="px-4 py-2">
                           <input
                             type="checkbox"
-                            checked={present.has(s.id)}
+                            checked={ticked.has(s.id)}
                             onChange={() => togglePresent(s.id)}
-                            aria-label={`Mark ${s.fullName} present for roll call`}
+                            aria-label={
+                              excludeMode
+                                ? `Mark ${s.fullName} absent`
+                                : `Mark ${s.fullName} present for roll call`
+                            }
                             className="h-4 w-4"
                           />
                         </td>
