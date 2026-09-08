@@ -9,6 +9,7 @@ import ScoreLeaderboard from "./ScoreLeaderboard";
 import StudentHistoryDialog from "./StudentHistoryDialog";
 import ThemeToggle from "./ThemeToggle";
 import { formatMatchTime, sessionToSummaryRows } from "@/lib/exportCsv";
+import { sessionMaxScore } from "@/lib/score";
 import { deleteSession, loadSession } from "@/lib/sessionStorage";
 import { useMounted } from "@/lib/useMounted";
 
@@ -49,6 +50,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
   const completed = session.matches.filter((m) => m.outcome === "completed").length;
   const skipped = session.matches.filter((m) => m.outcome === "skipped").length;
   const hasScores = session.matches.some((m) => typeof m.score === "number");
+  const maxScore = sessionMaxScore(session);
   const matchingHref = `/session/${session.sessionId}`;
 
   function handleStartNew() {
@@ -103,7 +105,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
         </div>
       </header>
 
-      <ScoreLeaderboard matches={session.matches} />
+      <ScoreLeaderboard matches={session.matches} maxScore={maxScore} />
 
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center text-sm text-zinc-500">
@@ -159,7 +161,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
                   </td>
                   {hasScores && (
                     <td className="px-4 py-3 tabular-nums text-zinc-800">
-                      {typeof m.score === "number" ? m.score : "—"}
+                      {typeof m.score === "number" ? (maxScore ? `${m.score} / ${maxScore}` : m.score) : "—"}
                     </td>
                   )}
                   <td className="whitespace-nowrap px-4 py-3 text-zinc-600">

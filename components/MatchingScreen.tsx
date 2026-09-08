@@ -20,6 +20,7 @@ import { COUNTDOWN_CHANGED_EVENT, resolveCountdownSeconds } from "@/lib/countdow
 import type { ParsedQuestion } from "@/lib/parseQuestions";
 import { beginMatch, pickRandom } from "@/lib/randomizer";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
+import { clampAwardedScore, sessionMaxScore } from "@/lib/score";
 import { playRevealChime, unlockAudio } from "@/lib/sound";
 import { useMounted } from "@/lib/useMounted";
 import type { MatchRecord, Session, Student } from "@/types";
@@ -109,7 +110,7 @@ function ActiveSession({
   const [celebrate, setCelebrate] = useState(false);
   const [paused, setPaused] = useState(false);
   const [completeStep, setCompleteStep] = useState(false);
-  const [pickedScore, setPickedScore] = useState<number | undefined>(undefined);
+  const [pickedScore, setPickedScore] = useState(0);
   const completionSeenRef = useRef(false);
   const handleRevealed = useCallback(() => {
     setRevealing(null);
@@ -144,7 +145,7 @@ function ActiveSession({
     setRevealNonce((n) => n + 1);
     setRevealing("both");
     setCompleteStep(false);
-    setPickedScore(undefined);
+    setPickedScore(0);
   }
 
   function handleMarkComplete(score?: number) {
@@ -160,8 +161,9 @@ function ActiveSession({
       completedAt: now,
       outcome: "completed",
     };
-    if (typeof score === "number" && score >= 1 && score <= 5) {
-      record.score = score;
+    const max = sessionMaxScore(session);
+    if (max !== null) {
+      record.score = clampAwardedScore(score ?? 0, max);
     }
     commit({
       ...session,
@@ -172,7 +174,7 @@ function ActiveSession({
     });
     setMatchStartedAt(null);
     setCompleteStep(false);
-    setPickedScore(undefined);
+    setPickedScore(0);
   }
 
   function handleSkip() {
@@ -198,7 +200,7 @@ function ActiveSession({
     });
     setMatchStartedAt(null);
     setCompleteStep(false);
-    setPickedScore(undefined);
+    setPickedScore(0);
   }
 
   // Keeps the student; the current question returns to the pool and is excluded from the re-pick.
@@ -210,7 +212,7 @@ function ActiveSession({
     setRevealNonce((n) => n + 1);
     setRevealing("question");
     setCompleteStep(false);
-    setPickedScore(undefined);
+    setPickedScore(0);
   }
 
   function handleAddQuestions(added: ParsedQuestion[]) {
@@ -260,8 +262,13 @@ function ActiveSession({
       }
       if (e.key === "Enter" && current && !revealing) {
         e.preventDefault();
-        if (completeStep) handleMarkComplete(pickedScore);
-        else setCompleteStep(true);
+        const max = sessionMaxScore(session);
+        if (max === null) handleMarkComplete();
+        else if (completeStep) handleMarkComplete(pickedScore);
+        else {
+          setPickedScore(0);
+          setCompleteStep(true);
+        }
       }
     }
     window.addEventListener("keydown", onKey);
@@ -443,11 +450,18 @@ function ActiveSession({
                 completeStep={completeStep}
                 pickedScore={pickedScore}
                 onPickedScore={setPickedScore}
-                onRequestComplete={() => setCompleteStep(true)}
+                onRequestComplete={() => {
+                  if (sessionMaxScore(session) === null) handleMarkComplete();
+                  else {
+                    setPickedScore(0);
+                    setCompleteStep(true);
+                  }
+                }}
                 onCancelComplete={() => {
                   setCompleteStep(false);
-                  setPickedScore(undefined);
+                  setPickedScore(0);
                 }}
+                maxScore={sessionMaxScore(session)}
               />
             </div>
           ) : (

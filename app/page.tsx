@@ -8,8 +8,10 @@ import FileUploader from "@/components/FileUploader";
 import StudentPreviewTable from "@/components/StudentPreviewTable";
 import QuestionPreviewTable from "@/components/QuestionPreviewTable";
 import RollCallLists from "@/components/RollCallLists";
+import SoundToggle from "@/components/SoundToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import { applyConfirmedCountdownToAllSessions, readGlobalCountdownSeconds } from "@/lib/countdown";
+import { parseMaxScoreInput } from "@/lib/score";
 import { parseStudents, type ParseStudentsResult } from "@/lib/parseStudents";
 import { parseQuestions, type ParseQuestionsResult } from "@/lib/parseQuestions";
 import { deleteSession, listSessions, saveSession, type SessionSummary } from "@/lib/sessionStorage";
@@ -53,6 +55,8 @@ export default function SessionSetupPage() {
   const [countdownError, setCountdownError] = useState<string | null>(null);
   const [countdownAppliedCount, setCountdownAppliedCount] = useState<number | null>(null);
   const [absentIds, setAbsentIds] = useState<Set<string>>(() => new Set());
+  const [maxScoreDraft, setMaxScoreDraft] = useState("");
+  const [maxScoreError, setMaxScoreError] = useState<string | null>(null);
   // Synchronous lock so a second click/Enter in the same tick cannot mint another session.
   const startingRef = useRef(false);
 
@@ -110,6 +114,12 @@ export default function SessionSetupPage() {
       return;
     }
 
+    const maxScoreParsed = parseMaxScoreInput(maxScoreDraft);
+    if (maxScoreParsed === "invalid") {
+      setMaxScoreError("Enter a whole number from 1 to 100, or leave blank to disable scoring.");
+      return;
+    }
+
     startingRef.current = true;
     setStarting(true);
     setStartError(null);
@@ -125,6 +135,7 @@ export default function SessionSetupPage() {
       matches: [],
       currentMatch: null,
       countdownSeconds: countdownEnabled ? (countdownConfirmedMinutes ?? 2) * 60 : 0,
+      ...(maxScoreParsed !== null ? { maxScore: maxScoreParsed } : {}),
     };
 
     const saved = saveSession(session);
@@ -153,7 +164,10 @@ export default function SessionSetupPage() {
               Set up a session by naming the module and loading your students and question bank.
             </p>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <SoundToggle />
+            <ThemeToggle />
+          </div>
         </header>
 
         <div className="space-y-6">
@@ -179,6 +193,33 @@ export default function SessionSetupPage() {
                   className={inputClass}
                 />
               </Field>
+            </div>
+            <div className="mt-4 max-w-xs">
+              <Field label="Max score" htmlFor="max-score">
+                <input
+                  id="max-score"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={maxScoreDraft}
+                  onChange={(e) => {
+                    setMaxScoreDraft(e.target.value);
+                    setMaxScoreError(null);
+                  }}
+                  placeholder="Leave blank to disable"
+                  className={inputClass}
+                />
+              </Field>
+              <p className="mt-1 text-xs text-zinc-500">
+                Sets the top mark for every question (e.g. 20). Leave blank if you are not scoring this session.
+              </p>
+              {maxScoreError && (
+                <p role="alert" className="mt-1 text-sm text-red-700">
+                  {maxScoreError}
+                </p>
+              )}
             </div>
             <div className="mt-4 space-y-3 border-t border-zinc-100 pt-4">
               <label className="flex items-center gap-2 text-sm text-zinc-800">

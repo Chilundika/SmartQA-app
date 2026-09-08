@@ -28,10 +28,12 @@ type Props = {
   onReshuffle: () => void;
   controlsDisabled?: boolean;
   completeStep: boolean;
-  pickedScore: number | undefined;
-  onPickedScore: (score: number | undefined) => void;
+  pickedScore: number;
+  onPickedScore: (score: number) => void;
   onRequestComplete: () => void;
   onCancelComplete: () => void;
+  /** When set, Mark Complete shows a 0–maxScore stepper/slider. When null, scoring is off. */
+  maxScore: number | null;
 };
 
 function pickDecoy<T extends { id: string }>(pool: T[], current: T, lastId?: string): T {
@@ -64,6 +66,7 @@ export default function MatchCard({
   onPickedScore,
   onRequestComplete,
   onCancelComplete,
+  maxScore,
 }: Props) {
   const [shownStudent, setShownStudent] = useState(() =>
     revealing === "both" ? pickDecoy(candidateStudents, student) : student,
@@ -231,32 +234,67 @@ export default function MatchCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 bg-zinc-50 px-6 py-4">
-        {completeStep && !spinning ? (
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
-            <p className="text-sm font-medium text-zinc-800">Score this answer (optional)</p>
-            <div className="flex items-center gap-1" role="group" aria-label="Score from 1 to 5">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => onPickedScore(pickedScore === n ? undefined : n)}
-                  aria-pressed={pickedScore === n}
-                  aria-label={`${n} out of 5`}
-                  disabled={controlsDisabled}
-                  className={`h-9 w-9 rounded-md text-sm font-semibold disabled:cursor-not-allowed ${
-                    pickedScore === n
-                      ? "bg-amber-500 text-white"
-                      : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2 sm:ml-auto">
+        {completeStep && !spinning && maxScore !== null ? (
+          <div className="flex w-full flex-col gap-3">
+            <p className="text-sm font-medium text-zinc-800">
+              Score this answer <span className="font-normal text-zinc-500">(0–{maxScore})</span>
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => onMarkComplete(pickedScore)}
+                aria-label="Decrease score"
+                disabled={controlsDisabled || (pickedScore ?? 0) <= 0}
+                onClick={() => onPickedScore(Math.max(0, (pickedScore ?? 0) - 1))}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={maxScore}
+                step={1}
+                value={pickedScore ?? 0}
+                disabled={controlsDisabled}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) {
+                    onPickedScore(0);
+                    return;
+                  }
+                  onPickedScore(Math.min(maxScore, Math.max(0, Math.round(n))));
+                }}
+                className="w-20 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-center text-sm font-semibold tabular-nums"
+              />
+              <button
+                type="button"
+                aria-label="Increase score"
+                disabled={controlsDisabled || (pickedScore ?? 0) >= maxScore}
+                onClick={() => onPickedScore(Math.min(maxScore, (pickedScore ?? 0) + 1))}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                +
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={maxScore}
+                step={1}
+                value={pickedScore ?? 0}
+                disabled={controlsDisabled}
+                onChange={(e) => onPickedScore(Number(e.target.value))}
+                className="min-w-48 flex-1"
+                aria-label={`Score out of ${maxScore}`}
+              />
+              <span className="text-sm tabular-nums text-zinc-600">
+                {pickedScore ?? 0} / {maxScore}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onMarkComplete(pickedScore ?? 0)}
                 className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed projector:px-8 projector:py-4 projector:text-2xl"
                 disabled={controlsDisabled}
               >

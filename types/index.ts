@@ -20,7 +20,7 @@ export type MatchRecord = {
   matchedAt: string;   // ISO timestamp
   completedAt?: string;
   outcome: "completed" | "skipped";
-  /** Optional 1–5 score, set at Mark Complete. Omitted when the lecturer skips scoring. */
+  /** Optional 0–maxScore value, set at Mark Complete when Session.maxScore is set. */
   score?: number;
 };
 
@@ -34,4 +34,6 @@ export type Session = {
   currentMatch?: { student: Student; question: Question } | null;
   /** Seconds per question after reveal settles. `0` disables the timer. Omitted on older sessions → 120. */
   countdownSeconds?: number;
+  /** Highest awardable score. Omitted or unset = scoring disabled for the session. */
+  maxScore?: number;
 };

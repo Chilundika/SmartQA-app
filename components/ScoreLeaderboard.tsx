@@ -5,7 +5,13 @@ import type { MatchRecord } from "@/types";
 
 type SortDir = "desc" | "asc";
 
-export default function ScoreLeaderboard({ matches }: { matches: readonly MatchRecord[] }) {
+export default function ScoreLeaderboard({
+  matches,
+  maxScore,
+}: {
+  matches: readonly MatchRecord[];
+  maxScore?: number | null;
+}) {
   const [dir, setDir] = useState<SortDir>("desc");
 
   const ranked = useMemo(() => {
@@ -51,7 +57,9 @@ export default function ScoreLeaderboard({ matches }: { matches: readonly MatchR
                   <p className="font-mono text-xs text-zinc-500">{m.student.studentNumber}</p>
                 </td>
                 <td className="px-4 py-3 text-zinc-800">{m.question.topic}</td>
-                <td className="px-4 py-3 text-lg font-semibold tabular-nums text-zinc-900">{m.score}</td>
+                <td className="px-4 py-3 text-lg font-semibold tabular-nums text-zinc-900">
+                  {maxScore ? `${m.score} / ${maxScore}` : m.score}
+                </td>
               </tr>
             ))}
           </tbody>
