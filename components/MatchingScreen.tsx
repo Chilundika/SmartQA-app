@@ -1,18 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import AddQuestionsPanel from "./AddQuestionsPanel";
 import AddStudentsPanel from "./AddStudentsPanel";
+import ConfettiBurst from "./ConfettiBurst";
 import MatchCard, { type RevealMode } from "./MatchCard";
 import MatchHistoryList from "./MatchHistoryList";
+import ProjectorToggle from "./ProjectorToggle";
 import RollCallLists from "./RollCallLists";
 import SessionCounters from "./SessionCounters";
+import SoundToggle from "./SoundToggle";
 import ThemeToggle from "./ThemeToggle";
+import { applyProjector, persistProjector, readProjector } from "@/lib/projector";
 import type { ParsedQuestion } from "@/lib/parseQuestions";
 import { beginMatch, pickRandom } from "@/lib/randomizer";
 import { loadSession, saveSession } from "@/lib/sessionStorage";
+import { playRevealChime, unlockAudio } from "@/lib/sound";
 import { useMounted } from "@/lib/useMounted";
 import type { MatchRecord, Session, Student } from "@/types";
 
@@ -74,7 +79,13 @@ function ActiveSession({
   const [revealing, setRevealing] = useState<RevealMode>(null);
   const [revealNonce, setRevealNonce] = useState(0);
   const [listsOpen, setListsOpen] = useState(false);
-  const handleRevealed = useCallback(() => setRevealing(null), []);
+  const [projector, setProjector] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const completionSeenRef = useRef(false);
+  const handleRevealed = useCallback(() => {
+    setRevealing(null);
+    playRevealChime();
+  }, []);
 
   // Memoized on the session arrays so the shuffle animation's candidate pools don't change identity mid-spin.
   const pendingStudents = useMemo(() => session.students.filter((s) => s.status === "pending"), [session.students]);
@@ -97,6 +108,7 @@ function ActiveSession({
   function handleBeginMatch() {
     const result = beginMatch(session);
     if (result.status !== "MATCHED") return;
+    unlockAudio();
     setMatchStartedAt(new Date().toISOString());
     commit({ ...session, currentMatch: { student: result.student, question: result.question } });
     setRevealNonce((n) => n + 1);
@@ -154,6 +166,7 @@ function ActiveSession({
   const reshufflePool = current ? pendingQuestions.filter((q) => q.id !== current.question.id) : [];
   function handleReshuffle() {
     if (!current || revealing || reshufflePool.length === 0) return;
+    unlockAudio();
     commit({ ...session, currentMatch: { student: current.student, question: pickRandom(reshufflePool) } });
     setRevealNonce((n) => n + 1);
     setRevealing("question");
@@ -182,13 +195,21 @@ function ActiveSession({
   const existingStudentNumbers = new Set(session.students.map((s) => s.studentNumber));
   const summaryHref = `/session/${session.sessionId}/summary`;
   const canUndo = !current && !revealing && session.matches.at(-1)?.outcome === "completed";
+  const completedCount = session.matches.filter((m) => m.outcome === "completed").length;
+  const matchY = session.students.length;
+  const matchX =
+    stop === "students" || stop === "both"
+      ? Math.min(completedCount, matchY)
+      : Math.min(matchY, completedCount + 1);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.repeat) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
+      // PRD §12: shortcuts stay off while any text field (search, upload, module name) is focused.
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
-      if (target?.closest("button, a, [role='button']")) return;
+      if (listsOpen) return;
 
       if (e.code === "Space" && !current && stop === null) {
         e.preventDefault();
@@ -203,36 +224,73 @@ function ActiveSession({
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  useEffect(() => {
+    const on = readProjector();
+    setProjector(on);
+    applyProjector(on);
+    return () => applyProjector(false);
+  }, []);
+
+  // Celebrate only when we *arrive* at a successful stop this visit — not on reload of an already-complete session,
+  // and never on the questions-exhausted case.
+  useEffect(() => {
+    if (!completionSeenRef.current) {
+      completionSeenRef.current = true;
+      return;
+    }
+    if (stop === "students" || stop === "both") {
+      setCelebrate(true);
+    } else {
+      setCelebrate(false);
+    }
+  }, [stop]);
+
   return (
     <Shell>
+      <ConfettiBurst active={celebrate} />
       <div className={listsOpen ? "print:hidden" : ""}>
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Matching session</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{session.moduleName}</h1>
-          <p className="mt-0.5 text-sm text-zinc-600">{session.dateCreated}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 projector:hidden">Matching session</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 projector:text-5xl">{session.moduleName}</h1>
+          <p className="mt-0.5 text-sm text-zinc-600 projector:hidden">{session.dateCreated}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums tracking-tight text-zinc-900 projector:text-6xl" aria-live="polite">
+            Match {matchX} of {matchY}
+          </p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <SessionCounters
+            className="projector:fixed projector:right-4 projector:top-4 projector:z-40"
             studentsRemaining={pendingStudents.length}
             studentsTotal={session.students.length}
             questionsRemaining={pendingQuestions.length}
             questionsTotal={session.questions.length}
           />
           <div className="flex items-center gap-3 text-xs print:hidden">
-            <SaveIndicator state={saveState} />
+            <span className="projector:hidden">
+              <SaveIndicator state={saveState} />
+            </span>
+            <SoundToggle />
             <ThemeToggle />
+            <ProjectorToggle
+              on={projector}
+              onToggle={() => {
+                const next = !projector;
+                persistProjector(next);
+                setProjector(next);
+              }}
+            />
             <button
               type="button"
               onClick={() => setListsOpen(true)}
-              className="font-medium text-zinc-700 underline-offset-2 hover:underline"
+              className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden"
             >
               View Full Lists
             </button>
-            <Link href={summaryHref} className="font-medium text-zinc-700 underline-offset-2 hover:underline">
+            <Link href={summaryHref} className="font-medium text-zinc-700 underline-offset-2 hover:underline projector:hidden">
               View Summary
             </Link>
-            <Link href="/" className="font-medium text-zinc-500 underline-offset-2 hover:underline">
+            <Link href="/" className="font-medium text-zinc-500 underline-offset-2 hover:underline projector:hidden">
               Setup
             </Link>
           </div>
@@ -261,7 +319,7 @@ function ActiveSession({
                   ))}
                 </ul>
               </div>
-              <div className="mt-4 border-t border-emerald-200 pt-4">
+              <div className="mt-4 border-t border-emerald-200 pt-4 projector:hidden">
                 <p className="mb-2 text-sm text-emerald-900">
                   Need to add a late arrival? Upload more students — completed matches stay as they are.
                 </p>
@@ -303,11 +361,11 @@ function ActiveSession({
                 type="button"
                 onClick={handleBeginMatch}
                 disabled={stop !== null}
-                className="rounded-lg bg-zinc-900 px-10 py-5 text-xl font-semibold text-white shadow-md hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none"
+                className="rounded-lg bg-zinc-900 px-10 py-5 text-xl font-semibold text-white shadow-md hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none projector:px-16 projector:py-8 projector:text-4xl"
               >
                 Begin Match
               </button>
-              <p className="mt-4 text-sm text-zinc-500">
+              <p className="mt-4 text-sm text-zinc-500 projector:text-xl">
                 {stop
                   ? "Matching is disabled — see the notice above."
                   : "Randomly pairs one waiting student with one unused question. Space begins a match; Enter marks complete."}
@@ -316,7 +374,7 @@ function ActiveSession({
                 <button
                   type="button"
                   onClick={handleUndoLastMatch}
-                  className="mt-4 text-sm font-medium text-zinc-600 underline-offset-2 hover:underline"
+                  className="mt-4 text-sm font-medium text-zinc-600 underline-offset-2 hover:underline projector:hidden"
                 >
                   Undo last match
                 </button>
@@ -325,7 +383,7 @@ function ActiveSession({
           )}
 
           {stop !== "students" && (
-            <details className="rounded-lg border border-zinc-200 bg-white p-4 text-sm">
+            <details className="rounded-lg border border-zinc-200 bg-white p-4 text-sm projector:hidden">
               <summary className="cursor-pointer font-medium text-zinc-800">Add students mid-session</summary>
               <p className="mt-2 text-zinc-600">
                 New names join the pending pool. Already-completed matches are not changed.
@@ -337,7 +395,9 @@ function ActiveSession({
           )}
         </main>
 
-        <MatchHistoryList matches={session.matches} />
+        <div className="projector:hidden">
+          <MatchHistoryList matches={session.matches} />
+        </div>
       </div>
       </div>
       {listsOpen && (
@@ -355,13 +415,13 @@ function ActiveSession({
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
+    <div className="flex-1 bg-zinc-50 text-zinc-900">
+      <div className="mx-auto w-full max-w-6xl px-6 py-8 projector:max-w-none projector:px-10 projector:py-12">{children}</div>
     </div>
   );
 }
 
-const bannerLinkClass = "inline-block rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800";
+const bannerLinkClass = "inline-block rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 projector:hidden";
 
 function Banner({ tone, title, children }: { tone: "done" | "warn"; title: string; children?: React.ReactNode }) {
   const tones = {
@@ -370,7 +430,7 @@ function Banner({ tone, title, children }: { tone: "done" | "warn"; title: strin
   };
   return (
     <section role="status" className={`rounded-lg border p-5 ${tones[tone]}`}>
-      <p className="text-base font-semibold">{title}</p>
+      <p className="text-base font-semibold projector:text-3xl">{title}</p>
       {children && <div className="mt-3">{children}</div>}
     </section>
   );

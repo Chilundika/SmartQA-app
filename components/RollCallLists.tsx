@@ -75,7 +75,7 @@ export default function RollCallLists({ moduleName, dateLabel, students, questio
   }
 
   return (
-    <div className="roll-call-overlay fixed inset-0 z-40 overflow-y-auto bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="roll-call-overlay fixed inset-0 z-40 overflow-y-auto bg-zinc-50 text-zinc-900">
       <div className="mx-auto w-full max-w-6xl px-6 py-8">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>

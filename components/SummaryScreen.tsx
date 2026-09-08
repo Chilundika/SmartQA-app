@@ -142,7 +142,7 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="flex-1 bg-zinc-50 text-zinc-900">
       <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
     </div>
   );

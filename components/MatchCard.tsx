@@ -167,7 +167,7 @@ export default function MatchCard({
   return (
     <div className="rounded-xl border border-zinc-200 bg-white shadow-sm" aria-busy={spinning} aria-live="polite">
       <div className="grid gap-px bg-zinc-200 md:grid-cols-2">
-        <section className="overflow-hidden bg-white p-6">
+        <section className="overflow-hidden bg-white p-6 projector:p-10">
           <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Student
             {studentSpinning && (
@@ -176,18 +176,18 @@ export default function MatchCard({
           </p>
           {studentSpinning ? (
             <div key={`s-${tick}`} className="animate-shuffle-tick">
-              <p className="mt-2 font-mono text-lg text-zinc-400">{shownStudent.studentNumber}</p>
-              <p className="mt-1 text-3xl font-semibold leading-tight text-zinc-400">{shownStudent.fullName}</p>
+              <p className="mt-2 font-mono text-lg text-zinc-400 projector:text-2xl">{shownStudent.studentNumber}</p>
+              <p className="mt-1 text-3xl font-semibold leading-tight text-zinc-400 projector:text-6xl">{shownStudent.fullName}</p>
             </div>
           ) : (
             <div key={`s-settled-${shownStudent.id}-${revealNonce}`} className="animate-reveal">
-              <p className="mt-2 font-mono text-lg text-zinc-600">{shownStudent.studentNumber}</p>
-              <p className="mt-1 text-3xl font-semibold leading-tight text-zinc-900">{shownStudent.fullName}</p>
+              <p className="mt-2 font-mono text-lg text-zinc-600 projector:text-2xl">{shownStudent.studentNumber}</p>
+              <p className="mt-1 text-3xl font-semibold leading-tight text-zinc-900 projector:text-6xl">{shownStudent.fullName}</p>
             </div>
           )}
         </section>
 
-        <section className="overflow-hidden bg-white p-6">
+        <section className="overflow-hidden bg-white p-6 projector:p-10">
           <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
             Question
             {questionSpinning && (
@@ -211,7 +211,7 @@ export default function MatchCard({
                 </span>
                 <span className="font-mono text-sm text-zinc-500">{shownQuestion.questionId}</span>
               </div>
-              <p className="mt-3 text-2xl font-medium leading-snug text-zinc-900">{shownQuestion.questionText}</p>
+              <p className="mt-3 text-2xl font-medium leading-snug text-zinc-900 projector:text-5xl">{shownQuestion.questionText}</p>
             </div>
           )}
         </section>
@@ -222,7 +222,7 @@ export default function MatchCard({
           type="button"
           onClick={onMarkComplete}
           disabled={spinning}
-          className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:shadow-none"
+          className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:shadow-none projector:px-8 projector:py-4 projector:text-2xl"
         >
           Mark Complete
         </button>
@@ -230,7 +230,7 @@ export default function MatchCard({
           type="button"
           onClick={onSkip}
           disabled={spinning}
-          className="rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:shadow-none"
+          className="rounded-md border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-400 disabled:shadow-none projector:px-8 projector:py-4 projector:text-xl"
         >
           Skip / Student Absent
         </button>
@@ -239,7 +239,7 @@ export default function MatchCard({
           onClick={onReshuffle}
           disabled={!canReshuffle || spinning}
           title={canReshuffle ? "Keep this student, pick a different question" : "No other questions left to pick from"}
-          className="ml-auto text-sm font-medium text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+          className="ml-auto text-sm font-medium text-zinc-600 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300 projector:hidden"
         >
           Reshuffle Question
         </button>

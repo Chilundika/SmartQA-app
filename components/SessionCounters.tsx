@@ -3,11 +3,18 @@ type Props = {
   studentsTotal: number;
   questionsRemaining: number;
   questionsTotal: number;
+  className?: string;
 };
 
-export default function SessionCounters({ studentsRemaining, studentsTotal, questionsRemaining, questionsTotal }: Props) {
+export default function SessionCounters({
+  studentsRemaining,
+  studentsTotal,
+  questionsRemaining,
+  questionsTotal,
+  className,
+}: Props) {
   return (
-    <dl className="flex gap-3">
+    <dl className={`flex gap-3 ${className ?? ""}`}>
       <Counter label="Students remaining" value={studentsRemaining} total={studentsTotal} />
       <Counter label="Questions remaining" value={questionsRemaining} total={questionsTotal} />
     </dl>

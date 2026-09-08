@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+@custom-variant projector (&:where(.projector, .projector *));
 
 :root {
   --background: #ffffff;
@@ -14,6 +15,7 @@
 
   --animate-reveal: reveal 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-shuffle-tick: shuffle-tick 80ms ease-out both;
+  --animate-confetti: confetti 2.4s ease-in forwards;
   @keyframes reveal {
     from {
       opacity: 0;
@@ -34,19 +36,23 @@
       transform: translateY(0);
     }
   }
+  @keyframes confetti {
+    from {
+      transform: translate3d(0, 0, 0) rotate(var(--r, 0deg));
+      opacity: 1;
+    }
+    to {
+      transform: translate3d(0, 100vh, 0) rotate(calc(var(--r, 0deg) + 720deg));
+      opacity: 0.15;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-reveal,
-  .animate-shuffle-tick {
+  .animate-shuffle-tick,
+  .animate-confetti {
     animation: none;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
   }
 }
 
@@ -58,6 +64,21 @@ body {
 
 html.dark {
   color-scheme: dark;
+  --background: #000000;
+  --foreground: #fafafa;
+  /* High-contrast remap of the light zinc/white tokens used across the app */
+  --color-white: #0a0a0a;
+  --color-zinc-50: #000000;
+  --color-zinc-100: #18181b;
+  --color-zinc-200: #3f3f46;
+  --color-zinc-300: #52525b;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #a1a1aa;
+  --color-zinc-600: #d4d4d8;
+  --color-zinc-700: #e4e4e7;
+  --color-zinc-800: #f4f4f5;
+  --color-zinc-900: #fafafa;
+  --color-zinc-950: #ffffff;
 }
 
 html.theme-contrast {
@@ -67,6 +88,18 @@ html.theme-contrast {
 html.theme-contrast body {
   background: #000;
   color: #fff;
+}
+
+html.projector {
+  font-size: 28px;
+}
+
+html.projector .app-chrome {
+  display: none !important;
+}
+
+html.projector body {
+  background: var(--background);
 }
 
 @media print {
