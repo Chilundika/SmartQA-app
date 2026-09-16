@@ -1,18 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { computeModuleStats } from "@/lib/moduleStats";
-import { listModuleNames, normalizeModuleKey } from "@/lib/sessionStorage";
+import { computeModuleStats, type ModuleStats } from "@/lib/moduleStats";
+import { listModuleNames, normalizeModuleKey } from "@/lib/db/sessions";
 import { useMounted } from "@/lib/useMounted";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function ModuleStatsScreen({ initialModule }: { initialModule: string }) {
   const router = useRouter();
   const mounted = useMounted();
-  const modules = useMemo(() => (mounted ? listModuleNames() : []), [mounted]);
+  const [modules, setModules] = useState<string[]>([]);
+  const [modulesReady, setModulesReady] = useState(false);
   const [selected, setSelected] = useState(initialModule);
+  const [stats, setStats] = useState<ModuleStats | null>(null);
+
+  useEffect(() => {
+    if (!mounted) return;
+    let cancelled = false;
+    listModuleNames().then((names) => {
+      if (cancelled) return;
+      setModules(names);
+      setModulesReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted]);
 
   const options = useMemo(() => {
     const names = [...modules];
@@ -28,10 +43,19 @@ export default function ModuleStatsScreen({ initialModule }: { initialModule: st
     return options.find((n) => normalizeModuleKey(n) === want) ?? options[0] ?? "";
   }, [selected, initialModule, options]);
 
-  const stats = useMemo(
-    () => (mounted && active ? computeModuleStats(active) : null),
-    [mounted, active],
-  );
+  useEffect(() => {
+    if (!mounted || !active) {
+      setStats(null);
+      return;
+    }
+    let cancelled = false;
+    computeModuleStats(active).then((result) => {
+      if (!cancelled) setStats(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, active]);
 
   function handleSelect(name: string) {
     setSelected(name);
@@ -60,7 +84,7 @@ export default function ModuleStatsScreen({ initialModule }: { initialModule: st
           </div>
         </header>
 
-        {!mounted ? (
+        {!mounted || !modulesReady ? (
           <p className="text-sm text-zinc-500">Loading…</p>
         ) : options.length === 0 ? (
           <p className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center text-sm text-zinc-500">

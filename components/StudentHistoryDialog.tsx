@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { studentHistoryForModule } from "@/lib/studentHistory";
+import { useEffect, useState } from "react";
+import { studentHistoryForModule, type StudentHistoryEntry } from "@/lib/studentHistory";
 
 type Props = {
   moduleName: string;
@@ -11,10 +11,17 @@ type Props = {
 };
 
 export default function StudentHistoryDialog({ moduleName, studentNumber, studentName, onClose }: Props) {
-  const entries = useMemo(
-    () => studentHistoryForModule(moduleName, studentNumber),
-    [moduleName, studentNumber],
-  );
+  const [entries, setEntries] = useState<StudentHistoryEntry[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    studentHistoryForModule(moduleName, studentNumber).then((rows) => {
+      if (!cancelled) setEntries(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [moduleName, studentNumber]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4 print:hidden">
@@ -43,7 +50,9 @@ export default function StudentHistoryDialog({ moduleName, studentNumber, studen
           </button>
         </div>
 
-        {entries.length === 0 ? (
+        {entries === null ? (
+          <p className="text-sm text-zinc-500">Loading…</p>
+        ) : entries.length === 0 ? (
           <p className="text-sm text-zinc-500">No matches recorded for this student in this module yet.</p>
         ) : (
           <ol className="divide-y divide-zinc-100 rounded-md border border-zinc-200">

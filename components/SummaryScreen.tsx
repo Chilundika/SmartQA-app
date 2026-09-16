@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -10,17 +10,28 @@ import StudentHistoryDialog from "./StudentHistoryDialog";
 import ThemeToggle from "./ThemeToggle";
 import { formatMatchTime, sessionToSummaryRows } from "@/lib/exportCsv";
 import { sessionMaxScore } from "@/lib/score";
-import { deleteSession, loadSession } from "@/lib/sessionStorage";
+import { loadSession } from "@/lib/db/sessions";
 import { useMounted } from "@/lib/useMounted";
 
 export default function SummaryScreen({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const mounted = useMounted();
-  const session = useMemo(() => (mounted ? loadSession(sessionId) : undefined), [mounted, sessionId]);
+  const [session, setSession] = useState<Awaited<ReturnType<typeof loadSession>> | undefined>(undefined);
   const [historyStudent, setHistoryStudent] = useState<{
     studentNumber: string;
     fullName: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!mounted) return;
+    let cancelled = false;
+    loadSession(sessionId).then((loaded) => {
+      if (!cancelled) setSession(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, sessionId]);
 
   if (session === undefined) {
     return (
@@ -54,7 +65,6 @@ export default function SummaryScreen({ sessionId }: { sessionId: string }) {
   const matchingHref = `/session/${session.sessionId}`;
 
   function handleStartNew() {
-    deleteSession(sessionId);
     router.push("/");
   }
 

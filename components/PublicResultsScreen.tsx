@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { loadSession } from "@/lib/sessionStorage";
+import { loadSession } from "@/lib/db/sessions";
 import { useMounted } from "@/lib/useMounted";
 import type { Session } from "@/types";
 
@@ -19,7 +19,7 @@ export default function PublicResultsScreen({ sessionId }: { sessionId: string }
     if (!mounted) return;
 
     function refresh() {
-      setSession(loadSession(sessionId));
+      void loadSession(sessionId).then(setSession);
     }
 
     refresh();

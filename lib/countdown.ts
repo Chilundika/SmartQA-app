@@ -1,5 +1,5 @@
 import type { Session } from "../types/index.ts";
-import { listSessions, loadSession, writeSessionBlob } from "./sessionStorage.ts";
+import { listSessions, loadSession, writeSessionBlob } from "./db/sessions.ts";
 
 export const DEFAULT_COUNTDOWN_SECONDS = 120;
 export const COUNTDOWN_PREF_KEY = "rsm_countdown_seconds";
@@ -42,18 +42,18 @@ export function resolveCountdownSeconds(session: Session): number {
  * Stores the confirmed duration as a device-wide preference and writes it onto
  * every saved session so previously created sessions use the same per-question timer.
  */
-export function applyConfirmedCountdownToAllSessions(seconds: number): number {
+export async function applyConfirmedCountdownToAllSessions(seconds: number): Promise<number> {
   const value = Math.max(0, Math.floor(seconds));
 
   let updated = 0;
-  for (const summary of listSessions()) {
-    const session = loadSession(summary.sessionId);
+  for (const summary of await listSessions()) {
+    const session = await loadSession(summary.sessionId);
     if (!session) continue;
     if (session.countdownSeconds === value) {
       updated += 1;
       continue;
     }
-    if (writeSessionBlob({ ...session, countdownSeconds: value })) updated += 1;
+    if (await writeSessionBlob({ ...session, countdownSeconds: value })) updated += 1;
   }
 
   persistConfirmedCountdownSeconds(value);

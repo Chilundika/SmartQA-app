@@ -20,7 +20,7 @@ import { applyProjector, persistProjector, readProjector } from "@/lib/projector
 import { COUNTDOWN_CHANGED_EVENT, resolveCountdownSeconds } from "@/lib/countdown";
 import type { ParsedQuestion } from "@/lib/parseQuestions";
 import { beginMatch, pickRandom } from "@/lib/randomizer";
-import { loadSession, saveSession } from "@/lib/sessionStorage";
+import { loadSession, saveSession } from "@/lib/db/sessions";
 import { clampAwardedScore, sessionMaxScore } from "@/lib/score";
 import { playRevealChime, unlockAudio } from "@/lib/sound";
 import { useMounted } from "@/lib/useMounted";
@@ -30,20 +30,48 @@ type SaveState = { ok: true; at: string } | { ok: false; error: string } | null;
 
 export default function MatchingScreen({ sessionId }: { sessionId: string }) {
   const mounted = useMounted();
+  const persistChain = useRef(Promise.resolve());
 
-  // Initial read happens once we're in the browser; every mutation afterwards goes through `commit`.
-  const initial = useMemo(() => (mounted ? loadSession(sessionId) : undefined), [mounted, sessionId]);
+  const [initial, setInitial] = useState<Session | null | undefined>(undefined);
   const [override, setOverride] = useState<Session | null>(null);
   const [saveState, setSaveState] = useState<SaveState>(null);
 
   useEffect(() => {
+    if (!mounted) return;
+    setInitial(undefined);
+    setOverride(null);
+    let cancelled = false;
+    loadSession(sessionId)
+      .then((session) => {
+        if (cancelled) return;
+        setInitial(session);
+        if (session) setSaveState({ ok: true, at: new Date().toISOString() });
+        else setSaveState(null);
+      })
+      .catch((err: unknown) => {
+        console.error("[SmartQA] matching loadSession failed", err, { sessionId });
+        if (!cancelled) {
+          setInitial(null);
+          setSaveState({
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, sessionId]);
+
+  useEffect(() => {
     function syncCountdown() {
-      const latest = loadSession(sessionId);
-      if (!latest || typeof latest.countdownSeconds !== "number") return;
-      setOverride((prev) => {
-        if (!prev) return latest;
-        if (prev.countdownSeconds === latest.countdownSeconds) return prev;
-        return { ...prev, countdownSeconds: latest.countdownSeconds };
+      void loadSession(sessionId).then((latest) => {
+        if (!latest || typeof latest.countdownSeconds !== "number") return;
+        setOverride((prev) => {
+          if (!prev) return latest;
+          if (prev.countdownSeconds === latest.countdownSeconds) return prev;
+          return { ...prev, countdownSeconds: latest.countdownSeconds };
+        });
       });
     }
     window.addEventListener("storage", syncCountdown);
@@ -76,20 +104,37 @@ export default function MatchingScreen({ sessionId }: { sessionId: string }) {
   }
 
   function commit(next: Session) {
-    const latest = loadSession(next.sessionId);
-    const stamped =
-      latest && typeof latest.countdownSeconds === "number"
-        ? { ...next, countdownSeconds: latest.countdownSeconds }
-        : next;
-    setOverride(stamped);
-    const result = saveSession(stamped);
-    setSaveState(result.ok ? { ok: true, at: result.savedAt } : { ok: false, error: result.error });
+    setOverride(next);
+    persistChain.current = persistChain.current
+      .then(async () => {
+        const latest = await loadSession(next.sessionId);
+        const stamped =
+          latest && typeof latest.countdownSeconds === "number"
+            ? { ...next, countdownSeconds: latest.countdownSeconds }
+            : next;
+        if (stamped.countdownSeconds !== next.countdownSeconds) {
+          setOverride((prev) =>
+            prev && prev.sessionId === stamped.sessionId
+              ? { ...prev, countdownSeconds: stamped.countdownSeconds }
+              : prev,
+          );
+        }
+        const result = await saveSession(stamped);
+        if (!result.ok) {
+          console.error("[SmartQA] matching saveSession failed", result.error, { sessionId: next.sessionId });
+        }
+        setSaveState(result.ok ? { ok: true, at: result.savedAt } : { ok: false, error: result.error });
+      })
+      .catch((err: unknown) => {
+        console.error("[SmartQA] matching persist threw", err, { sessionId: next.sessionId });
+        setSaveState({
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
   }
 
-  // Session is already on disk from setup / a previous save — show Saved on first paint, not only after a mutation.
-  const displaySave: SaveState = saveState ?? { ok: true, at: new Date().toISOString() };
-
-  return <ActiveSession session={session} saveState={displaySave} commit={commit} />;
+  return <ActiveSession session={session} saveState={saveState} commit={commit} />;
 }
 
 function ActiveSession({
@@ -327,6 +372,11 @@ function ActiveSession({
             questionsTotal={session.questions.length}
           />
         </div>
+        {saveState && !saveState.ok && (
+          <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {saveState.error}
+          </p>
+        )}
         <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 text-xs print:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           <span className="shrink-0 projector:hidden">
             <SaveIndicator state={saveState} />

@@ -1,4 +1,4 @@
-import { loadSessionsForModule } from "./sessionStorage.ts";
+import { loadSessionsForModule } from "./db/sessions.ts";
 
 export type StudentHistoryEntry = {
   sessionId: string;
@@ -15,11 +15,14 @@ function normalizeStudentNumber(value: string): string {
 }
 
 /** Read-only lookup of every match for this student number in the same module. */
-export function studentHistoryForModule(moduleName: string, studentNumber: string): StudentHistoryEntry[] {
+export async function studentHistoryForModule(
+  moduleName: string,
+  studentNumber: string,
+): Promise<StudentHistoryEntry[]> {
   const want = normalizeStudentNumber(studentNumber);
   if (!want) return [];
   const entries: StudentHistoryEntry[] = [];
-  for (const session of loadSessionsForModule(moduleName)) {
+  for (const session of await loadSessionsForModule(moduleName)) {
     for (const match of session.matches) {
       if (normalizeStudentNumber(match.student.studentNumber) !== want) continue;
       entries.push({

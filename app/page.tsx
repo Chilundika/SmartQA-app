@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -14,7 +14,7 @@ import { applyConfirmedCountdownToAllSessions, readGlobalCountdownSeconds } from
 import { parseMaxScoreInput } from "@/lib/score";
 import { parseStudents, type ParseStudentsResult } from "@/lib/parseStudents";
 import { parseQuestions, type ParseQuestionsResult } from "@/lib/parseQuestions";
-import { deleteSession, listSessions, saveSession, type SessionSummary } from "@/lib/sessionStorage";
+import { deleteSession, listSessions, saveSession, type SessionSummary } from "@/lib/db/sessions";
 import { useMounted } from "@/lib/useMounted";
 import type { Session } from "@/types";
 
@@ -61,12 +61,21 @@ export default function SessionSetupPage() {
   const startingRef = useRef(false);
 
   const date = dateOverride ?? (mounted ? todayLocalIso() : "");
-  const savedSessions = useMemo<SessionSummary[]>(
-    () => (mounted ? listSessions() : []),
-    // sessionsVersion is bumped after deletes so the list re-reads localStorage.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mounted, sessionsVersion],
-  );
+  const [savedSessions, setSavedSessions] = useState<SessionSummary[]>([]);
+  const [sessionsReady, setSessionsReady] = useState(false);
+
+  useEffect(() => {
+    if (!mounted) return;
+    let cancelled = false;
+    listSessions().then((rows) => {
+      if (cancelled) return;
+      setSavedSessions(rows);
+      setSessionsReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, sessionsVersion]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -100,7 +109,7 @@ export default function SessionSetupPage() {
   const countdownReady = !countdownEnabled || countdownConfirmedMinutes !== null;
   const canStart = bothConfirmed && moduleName.trim().length > 0 && date.length > 0 && countdownReady;
 
-  function handleStart() {
+  async function handleStart() {
     if (startingRef.current) return;
     if (students.status !== "confirmed" || questions.status !== "confirmed") return;
 
@@ -138,8 +147,9 @@ export default function SessionSetupPage() {
       ...(maxScoreParsed !== null ? { maxScore: maxScoreParsed } : {}),
     };
 
-    const saved = saveSession(session);
+    const saved = await saveSession(session);
     if (!saved.ok) {
+      console.error("[SmartQA] Start Session save failed", saved.error, { sessionId: session.sessionId });
       startingRef.current = false;
       setStarting(false);
       setStartError(saved.error);
@@ -148,9 +158,9 @@ export default function SessionSetupPage() {
     router.push(`/session/${session.sessionId}`);
   }
 
-  function handleDelete(summary: SessionSummary) {
+  async function handleDelete(summary: SessionSummary) {
     if (!window.confirm(`Delete the saved session "${summary.moduleName}"? This cannot be undone.`)) return;
-    deleteSession(summary.sessionId);
+    await deleteSession(summary.sessionId);
     setSessionsVersion((v) => v + 1);
   }
 
@@ -294,8 +304,7 @@ export default function SessionSetupPage() {
                         setCountdownError(null);
                         setCountdownConfirmedMinutes(minutes);
                         setCountdownDraft(String(minutes));
-                        const applied = applyConfirmedCountdownToAllSessions(minutes * 60);
-                        setCountdownAppliedCount(applied);
+                        void applyConfirmedCountdownToAllSessions(minutes * 60).then(setCountdownAppliedCount);
                       }}
                       className="inline-flex min-h-11 items-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
                     >
@@ -415,7 +424,9 @@ export default function SessionSetupPage() {
               Module stats
             </Link>
           </div>
-          {savedSessions.length === 0 ? (
+          {!sessionsReady ? (
+            <p className="mt-2 text-sm text-zinc-500">Loading…</p>
+          ) : savedSessions.length === 0 ? (
             <p className="mt-2 text-sm text-zinc-500">No saved sessions on this device yet.</p>
           ) : (
             <ul className="mt-3 divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">

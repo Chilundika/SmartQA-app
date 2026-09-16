@@ -1,4 +1,4 @@
-import { loadSessionsForModule } from "./sessionStorage.ts";
+import { loadSessionsForModule } from "./db/sessions.ts";
 
 export type TopicUse = {
   topic: string;
@@ -16,9 +16,9 @@ export type ModuleStats = {
   leastUsed: TopicUse | null;
 };
 
-/** Read-only aggregates. Never writes to localStorage. */
-export function computeModuleStats(moduleName: string): ModuleStats {
-  const sessions = loadSessionsForModule(moduleName);
+/** Read-only aggregates. Never writes session data. */
+export async function computeModuleStats(moduleName: string): Promise<ModuleStats> {
+  const sessions = await loadSessionsForModule(moduleName);
   const displayName = sessions[0]?.moduleName.trim() || moduleName.trim();
   const tested = new Set<string>();
   let completedMatches = 0;
