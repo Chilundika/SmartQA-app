@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import AddQuestionsPanel from "./AddQuestionsPanel";
 import AddStudentsPanel from "./AddStudentsPanel";
@@ -100,6 +101,7 @@ function ActiveSession({
   saveState: SaveState;
   commit: (next: Session) => void;
 }) {
+  const router = useRouter();
   // Not part of the persisted Session shape; falls back to "now" if the page was reloaded mid-match.
   const [matchStartedAt, setMatchStartedAt] = useState<string | null>(null);
   // Purely visual: which columns of the match card are still "spinning". The real pair is already committed.
@@ -351,6 +353,23 @@ function ActiveSession({
           >
             {paused ? "Resume" : "Pause"}
             <span className="hidden sm:inline">{paused ? "" : " Session"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                current &&
+                !window.confirm(
+                  "A match is still on screen. End the session without marking it complete or skipped?",
+                )
+              ) {
+                return;
+              }
+              router.push(summaryHref);
+            }}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-md bg-zinc-900 px-3 text-xs font-semibold text-white hover:bg-zinc-800 projector:hidden"
+          >
+            End Session
           </button>
           <button
             type="button"
