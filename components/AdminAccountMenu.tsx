@@ -14,7 +14,11 @@ export default function AdminAccountMenu() {
   const [email, setEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
-  const hide = pathname === "/login" || /\/session\/[^/]+\/public\/?$/.test(pathname);
+  const hide =
+    pathname === "/login" ||
+    pathname === "/student/login" ||
+    pathname.startsWith("/student") ||
+    /\/session\/[^/]+\/public\/?$/.test(pathname);
 
   useEffect(() => {
     if (hide) return;
@@ -38,12 +42,12 @@ export default function AdminAccountMenu() {
     if (signingOut) return;
     setSigningOut(true);
     await signOutAdmin();
-    router.replace("/login");
+    router.replace("/");
     router.refresh();
   }
 
   return (
-    <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
+    <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
       <p className="hidden truncate text-xs text-zinc-500 sm:block" title={email}>
         {email}
       </p>

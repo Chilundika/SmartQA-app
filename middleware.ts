@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isAdminApiPath, isPublicApiPath, isPublicPath, isStudentAppPath } from "@/lib/auth/paths";
 import {
   clearSupabaseAuthCookies,
   createMiddlewareClient,
@@ -9,9 +10,41 @@ import {
   withCookies,
 } from "@/lib/supabase/middleware";
 
-function isPublicPath(pathname: string): boolean {
-  if (pathname === "/login") return true;
-  return /^\/session\/[^/]+\/public\/?$/.test(pathname);
+function redirectTo(request: NextRequest, response: NextResponse, pathname: string): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  return withCookies(response, NextResponse.redirect(url));
+}
+
+async function studentMustChangePassword(
+  supabase: Awaited<ReturnType<typeof createMiddlewareClient>>["supabase"],
+  userId: string,
+): Promise<boolean> {
+  const { data: flag, error: flagError } = await supabase.rpc("student_must_change_password");
+  if (!flagError) return Boolean(flag);
+
+  console.error("[SmartQA] middleware student_must_change_password", {
+    message: flagError.message,
+    code: flagError.code,
+    details: flagError.details,
+    hint: flagError.hint,
+  });
+
+  const { data: row, error: rowError } = await supabase
+    .from("students")
+    .select("must_change_password")
+    .eq("auth_user_id", userId)
+    .maybeSingle();
+  if (rowError) {
+    console.error("[SmartQA] middleware students.must_change_password", {
+      message: rowError.message,
+      code: rowError.code,
+      details: rowError.details,
+      hint: rowError.hint,
+    });
+  }
+  return Boolean(row?.must_change_password);
 }
 
 export async function middleware(request: NextRequest) {
@@ -40,23 +73,18 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const { pathname, search } = request.nextUrl;
+  const { pathname } = request.nextUrl;
   const isApi = pathname.startsWith("/api/");
 
   if (!user) {
-    if (isPublicPath(pathname)) return getResponse();
+    if (isPublicPath(pathname) || isPublicApiPath(pathname)) return getResponse();
     if (isApi) {
-      return withCookies(
-        getResponse(),
-        NextResponse.json({ ok: false, error: "Sign in as an admin to continue." }, { status: 401 }),
-      );
+      const message = isAdminApiPath(pathname)
+        ? "Sign in as an admin to continue."
+        : "Sign in to continue.";
+      return withCookies(getResponse(), NextResponse.json({ ok: false, error: message }, { status: 401 }));
     }
-    const login = request.nextUrl.clone();
-    login.pathname = "/login";
-    login.search = "";
-    const next = `${pathname}${search}`;
-    if (next && next !== "/") login.searchParams.set("next", next);
-    return withCookies(getResponse(), NextResponse.redirect(login));
+    return redirectTo(request, getResponse(), "/");
   }
 
   const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin");
@@ -69,50 +97,56 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  if (!isAdmin) {
-    if (isApi) {
+  if (isAdmin) {
+    const { data: mustChange, error: flagError } = await supabase.rpc("admin_must_change_password");
+    if (flagError) {
+      console.error("[SmartQA] middleware admin_must_change_password", {
+        message: flagError.message,
+        code: flagError.code,
+        details: flagError.details,
+        hint: flagError.hint,
+      });
+    }
+
+    if (mustChange) {
+      if (isApi) {
+        return withCookies(
+          getResponse(),
+          NextResponse.json({ ok: false, error: "Change your password before using admin tools." }, { status: 403 }),
+        );
+      }
+      if (pathname === "/change-password") return getResponse();
+      return redirectTo(request, getResponse(), "/change-password");
+    }
+
+    if (pathname === "/login" || pathname === "/student/login" || isStudentAppPath(pathname)) {
+      return redirectTo(request, getResponse(), "/");
+    }
+    return getResponse();
+  }
+
+  if (isApi) {
+    if (isAdminApiPath(pathname)) {
       return withCookies(
         getResponse(),
         NextResponse.json({ ok: false, error: "Only admins can call this endpoint." }, { status: 403 }),
       );
     }
-    if (pathname === "/login") return getResponse();
-    const login = request.nextUrl.clone();
-    login.pathname = "/login";
-    login.search = "";
-    login.searchParams.set("error", "not_admin");
-    return withCookies(getResponse(), NextResponse.redirect(login));
+    return getResponse();
   }
 
-  const { data: mustChange, error: flagError } = await supabase.rpc("admin_must_change_password");
-  if (flagError) {
-    console.error("[SmartQA] middleware admin_must_change_password", {
-      message: flagError.message,
-      code: flagError.code,
-      details: flagError.details,
-      hint: flagError.hint,
-    });
-  }
-
+  const mustChange = await studentMustChangePassword(supabase, user.id);
   if (mustChange) {
-    if (isApi) {
-      return withCookies(
-        getResponse(),
-        NextResponse.json({ ok: false, error: "Change your password before using admin tools." }, { status: 403 }),
-      );
-    }
-    if (pathname === "/change-password") return getResponse();
-    const change = request.nextUrl.clone();
-    change.pathname = "/change-password";
-    change.search = "";
-    return withCookies(getResponse(), NextResponse.redirect(change));
+    if (pathname === "/student/change-password") return getResponse();
+    return redirectTo(request, getResponse(), "/student/change-password");
   }
 
-  if (pathname === "/login") {
-    const home = request.nextUrl.clone();
-    home.pathname = "/";
-    home.search = "";
-    return withCookies(getResponse(), NextResponse.redirect(home));
+  if (pathname === "/login" || pathname === "/student/login" || pathname === "/") {
+    return redirectTo(request, getResponse(), "/student");
+  }
+
+  if (!isStudentAppPath(pathname)) {
+    return redirectTo(request, getResponse(), "/student");
   }
 
   return getResponse();

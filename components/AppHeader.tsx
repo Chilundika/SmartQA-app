@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import AdminAccountMenu from "@/components/AdminAccountMenu";
+import StudentAccountMenu from "@/components/StudentAccountMenu";
 import logo from "@/images/logo.jpeg";
 
 export default function AppHeader() {
@@ -24,7 +25,10 @@ export default function AppHeader() {
             <span className="block text-[11px] text-zinc-500 sm:text-xs">by SmartProtocol-ZM</span>
           </span>
         </Link>
-        <AdminAccountMenu />
+        <div className="ml-auto">
+          <AdminAccountMenu />
+          <StudentAccountMenu />
+        </div>
       </div>
     </header>
   );

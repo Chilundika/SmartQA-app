@@ -1,5 +1,6 @@
 import { createClient } from "../supabase/client.ts";
 import { formatDbError, logSupabaseError } from "../db/errors.ts";
+import { signOutSession } from "./session.ts";
 
 export type AdminProfile = {
   id: string;
@@ -8,7 +9,10 @@ export type AdminProfile = {
 };
 
 export function isSafeNextPath(value: string | null | undefined): value is string {
-  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/login");
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) return false;
+  if (value === "/login" || value.startsWith("/login?")) return false;
+  if (value === "/student/login" || value === "/student" || value.startsWith("/student/")) return false;
+  return true;
 }
 
 export async function loadAdminProfile(userId: string): Promise<
@@ -77,7 +81,5 @@ export async function clearMustChangePassword(userId: string): Promise<{ ok: tru
 }
 
 export async function signOutAdmin(): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) logSupabaseError("auth.signOut", error);
+  await signOutSession();
 }
