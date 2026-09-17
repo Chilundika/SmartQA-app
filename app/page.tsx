@@ -11,9 +11,11 @@ import RollCallLists from "@/components/RollCallLists";
 import SoundToggle from "@/components/SoundToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import { applyConfirmedCountdownToAllSessions, readGlobalCountdownSeconds } from "@/lib/countdown";
+import { formatStudentAccountSync, requestStudentAccountSync } from "@/lib/auth/syncStudentAccounts";
 import { parseMaxScoreInput } from "@/lib/score";
 import { parseStudents, type ParseStudentsResult } from "@/lib/parseStudents";
 import { parseQuestions, type ParseQuestionsResult } from "@/lib/parseQuestions";
+import { ensureStudents } from "@/lib/db/matches";
 import { deleteSession, listSessions, saveSession, type SessionSummary } from "@/lib/db/sessions";
 import { useMounted } from "@/lib/useMounted";
 import type { Session } from "@/types";
@@ -57,6 +59,9 @@ export default function SessionSetupPage() {
   const [absentIds, setAbsentIds] = useState<Set<string>>(() => new Set());
   const [maxScoreDraft, setMaxScoreDraft] = useState("");
   const [maxScoreError, setMaxScoreError] = useState<string | null>(null);
+  const [rosterSyncing, setRosterSyncing] = useState(false);
+  const [rosterSyncMessage, setRosterSyncMessage] = useState<string | null>(null);
+  const [rosterSyncError, setRosterSyncError] = useState<string | null>(null);
   // Synchronous lock so a second click/Enter in the same tick cannot mint another session.
   const startingRef = useRef(false);
 
@@ -102,6 +107,39 @@ export default function SessionSetupPage() {
         fileName: file.name,
         message: err instanceof Error ? err.message : "Could not read this file.",
       });
+    }
+  }
+
+  async function confirmStudentRoster() {
+    if (students.status !== "preview" || rosterSyncing) return;
+    setRosterSyncing(true);
+    setRosterSyncMessage(null);
+    setRosterSyncError(null);
+    try {
+      const saved = await ensureStudents(students.result.validRows);
+      if (!saved.ok) {
+        setRosterSyncError(saved.error);
+        return;
+      }
+      setStudents({ ...students, status: "confirmed" });
+      const synced = await requestStudentAccountSync(
+        students.result.validRows.map((s) => ({
+          studentNumber: s.studentNumber,
+          fullName: s.fullName,
+        })),
+      );
+      if (!synced.ok) {
+        setRosterSyncError(synced.error);
+        return;
+      }
+      setRosterSyncMessage(formatStudentAccountSync(synced));
+      if (synced.failed.length > 0) {
+        setRosterSyncError(synced.failed.map((f) => `${f.studentNumber}: ${f.error}`).join(" · "));
+      }
+    } catch (err) {
+      setRosterSyncError(err instanceof Error ? err.message : "Could not sync student accounts.");
+    } finally {
+      setRosterSyncing(false);
     }
   }
 
@@ -338,18 +376,34 @@ export default function SessionSetupPage() {
               state={students}
               uploaderLabel="Choose students file"
               onFile={(file) => handleUpload(file, parseStudents, setStudents)}
-              onConfirm={() =>
-                students.status === "preview" && setStudents({ ...students, status: "confirmed" })
-              }
+              onConfirm={() => void confirmStudentRoster()}
               onReset={() => {
                 setStudents({ status: "idle" });
                 setAbsentIds(new Set());
+                setRosterSyncMessage(null);
+                setRosterSyncError(null);
               }}
-              confirmLabel={(r) => `Confirm & Load ${r.validRows.length} students`}
-              canConfirm={(r) => r.validRows.length > 0 && r.duplicates.length === 0}
+              confirmLabel={(r) =>
+                rosterSyncing
+                  ? "Syncing student accounts…"
+                  : `Confirm & Load ${r.validRows.length} students`
+              }
+              canConfirm={(r) => r.validRows.length > 0 && r.duplicates.length === 0 && !rosterSyncing}
               confirmedSummary={(r) => `${r.validRows.length} students loaded`}
               renderPreview={(r) => <StudentPreviewTable result={r} />}
             />
+            {(rosterSyncMessage || rosterSyncError) && (
+              <div className="mt-3 space-y-2">
+                {rosterSyncMessage && (
+                  <p className="text-sm text-emerald-800">{rosterSyncMessage}</p>
+                )}
+                {rosterSyncError && (
+                  <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                    {rosterSyncError}
+                  </p>
+                )}
+              </div>
+            )}
           </Card>
 
           {/* Step 3: questions */}

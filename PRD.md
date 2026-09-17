@@ -362,16 +362,15 @@ Each phase should be its own set of Cursor prompts, tested and committed before 
 
 ```sql
 -- Students
--- NOTE: password_hash here is a placeholder for now (Phase 1 only wrote
--- student roster data via the CSV upload; real student login is Phase 3).
--- When Phase 3 is built, this should follow the same pattern as `admins`
--- below — link to auth.users(id) via Supabase Auth, drop this column, and
--- migrate any existing rows accordingly rather than keeping two sources
--- of truth for a password.
+-- Passwords are NOT stored here — Supabase Auth's own auth.users table
+-- handles them, via a deterministic synthetic email built from
+-- student_number (see §20.2/20.3). student_number stays the primary key
+-- (matches.student_number depends on it as a foreign key); auth_user_id
+-- links to the actual Supabase Auth account once one exists for that student.
 create table students (
   student_number text primary key,
   full_name text not null,
-  password_hash text not null,
+  auth_user_id uuid references auth.users(id),
   must_change_password boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -435,14 +434,19 @@ create table learning_materials (
 - The literal string of the default password must not appear hardcoded in application source files committed to the repo — store it as an environment variable (e.g. `DEFAULT_STUDENT_PASSWORD`) used only by the account-creation/seed script, never referenced elsewhere.
 
 ### 20.2 Implementation approach
-Two viable approaches — pick one before building:
-- **Option A (recommended): Supabase Auth with synthetic emails.** Supabase Auth expects an email/password pair. Map each student to a synthetic email like `{student_number}@smartqa.internal` under the hood (never shown to the student, who only ever types their Student ID). This gets you Supabase's built-in password hashing, session tokens, and auth middleware for free, rather than hand-rolling auth.
-- **Option B: fully custom auth table.** Roll your own login/session logic against the `students`/`admins` tables directly. More control, but more surface area for mistakes (session handling, token expiry, hashing) — only worth it if Option A's synthetic-email approach causes real problems.
+**Decided: Option A — Supabase Auth with synthetic emails.** Each student maps to a deterministic synthetic email, `{student_number}@smartqa.internal` (never shown to the student, who only ever types their Student Number). Because the mapping is deterministic, the app builds this email directly from what the student types at login — no database lookup is needed before authenticating, which also means the `students` table never needs to grant public/anonymous read access just to support login.
+
+**Bulk account creation.** Unlike the single admin account (created once, by hand, in §20.4), student accounts must be created in bulk whenever a roster is uploaded — this cannot be a manual per-student process. Creating a Supabase Auth user requires the **service role key** (admin-level access, bypasses RLS), which must only ever run **server-side** (a Next.js API route), never in client-side code — see §23. Design:
+- When a student roster is uploaded (the existing CSV upload flow from Part 1), the app calls a server-side route that, for each student_number not yet linked to an `auth_user_id`: creates a Supabase Auth user with the synthetic email and the default password (from the `DEFAULT_STUDENT_PASSWORD` env var, §20.1), then updates that student's row with the new `auth_user_id` and `must_change_password = true`.
+- This route must be idempotent — re-uploading a roster that includes already-registered students must skip creating duplicate auth accounts for them, only creating accounts for genuinely new student_numbers.
+- Also provide a manual "Sync accounts" action in the admin dashboard, to backfill auth accounts for any student rows that predate this feature (e.g. rows already in the table from earlier testing) without needing a full re-upload.
 
 ### 20.3 Student login flow
-1. Student enters their Student Number as username and the current password (default `Mis@26` on first login, via env var — see §20.1).
-2. On successful login, check `must_change_password`. If true, force a "Create your new password" screen before allowing access to anything else — no skipping this step.
-3. On successful password change, set `must_change_password` to false and proceed to the student dashboard.
+1. Student enters their Student Number and their current password (default `Mis@26` on first login, via `DEFAULT_STUDENT_PASSWORD` env var — see §20.1).
+2. The app constructs the synthetic email (`{student_number}@smartqa.internal`) client-side and calls Supabase Auth's sign-in method with it and the entered password — no database lookup required first.
+3. On successful login, check that student's `must_change_password` flag (queried from `students`, restricted by RLS to their own row — see §19). If true, force a "Create your new password" screen before allowing access to anything else — no skipping this step.
+4. On successful password change (via Supabase Auth's update-password method), set `must_change_password` to false and proceed to the student dashboard.
+5. If sign-in fails because no auth account exists yet for that student_number (e.g. their roster row hasn't been synced), show a clear message directing them to contact the lecturer/admin, rather than a generic "invalid credentials" error — this is a genuinely different problem from a wrong password.
 
 ### 20.4 Admin login flow
 - No public signup route in the app. The first admin account is created directly in the Supabase dashboard or via a one-time seed script run locally (not exposed as a web endpoint).

@@ -15,9 +15,6 @@ export type MatchRow = {
   completed_at: string | null;
 };
 
-/** bcrypt-incompatible placeholder so Phase 1 inserts satisfy NOT NULL without setting a real password. */
-const UNUSABLE_PASSWORD_HASH = "!";
-
 function isOutcome(value: string): value is "completed" | "skipped" {
   return value === "completed" || value === "skipped";
 }
@@ -72,7 +69,6 @@ export async function ensureStudents(students: Student[]): Promise<{ ok: true } 
     .map((s) => ({
       student_number: s.studentNumber.trim(),
       full_name: s.fullName.trim() || s.studentNumber.trim(),
-      password_hash: UNUSABLE_PASSWORD_HASH,
       must_change_password: true,
     }))
     .filter((s) => s.student_number);

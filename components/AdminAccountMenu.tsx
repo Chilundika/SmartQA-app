@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { signOutAdmin } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/client";
+import SyncStudentAccountsButton from "@/components/SyncStudentAccountsButton";
 
 export default function AdminAccountMenu() {
   const pathname = usePathname();
@@ -52,6 +53,7 @@ export default function AdminAccountMenu() {
       >
         Change password
       </Link>
+      <SyncStudentAccountsButton />
       <button
         type="button"
         onClick={handleSignOut}

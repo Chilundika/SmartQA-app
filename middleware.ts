@@ -1,6 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { createMiddlewareClient, withCookies } from "@/lib/supabase/middleware";
+import {
+  clearSupabaseAuthCookies,
+  createMiddlewareClient,
+  hasSupabaseAuthCookie,
+  isStaleAuthError,
+  suppressStaleAuthConsole,
+  withCookies,
+} from "@/lib/supabase/middleware";
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === "/login") return true;
@@ -8,28 +15,48 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const { supabase, response } = await createMiddlewareClient(request);
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const user = userData.user;
+  const { supabase, getResponse } = await createMiddlewareClient(request);
+  let user = null;
 
-  if (userError && userError.name !== "AuthSessionMissingError") {
-    console.error("[SmartQA] middleware getUser", {
-      message: userError.message,
-      status: userError.status,
-      name: userError.name,
-    });
+  if (hasSupabaseAuthCookie(request)) {
+    const restoreConsole = suppressStaleAuthConsole();
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      user = userData.user;
+
+      if (userError && isStaleAuthError(userError)) {
+        user = null;
+        clearSupabaseAuthCookies(request, getResponse());
+      } else if (userError) {
+        console.error("[SmartQA] middleware getUser", {
+          message: userError.message,
+          status: userError.status,
+          name: userError.name,
+          code: "code" in userError ? userError.code : undefined,
+        });
+      }
+    } finally {
+      restoreConsole();
+    }
   }
 
   const { pathname, search } = request.nextUrl;
+  const isApi = pathname.startsWith("/api/");
 
   if (!user) {
-    if (isPublicPath(pathname)) return response;
+    if (isPublicPath(pathname)) return getResponse();
+    if (isApi) {
+      return withCookies(
+        getResponse(),
+        NextResponse.json({ ok: false, error: "Sign in as an admin to continue." }, { status: 401 }),
+      );
+    }
     const login = request.nextUrl.clone();
     login.pathname = "/login";
     login.search = "";
     const next = `${pathname}${search}`;
     if (next && next !== "/") login.searchParams.set("next", next);
-    return withCookies(response, NextResponse.redirect(login));
+    return withCookies(getResponse(), NextResponse.redirect(login));
   }
 
   const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin");
@@ -43,12 +70,18 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!isAdmin) {
-    if (pathname === "/login") return response;
+    if (isApi) {
+      return withCookies(
+        getResponse(),
+        NextResponse.json({ ok: false, error: "Only admins can call this endpoint." }, { status: 403 }),
+      );
+    }
+    if (pathname === "/login") return getResponse();
     const login = request.nextUrl.clone();
     login.pathname = "/login";
     login.search = "";
     login.searchParams.set("error", "not_admin");
-    return withCookies(response, NextResponse.redirect(login));
+    return withCookies(getResponse(), NextResponse.redirect(login));
   }
 
   const { data: mustChange, error: flagError } = await supabase.rpc("admin_must_change_password");
@@ -62,21 +95,27 @@ export async function middleware(request: NextRequest) {
   }
 
   if (mustChange) {
-    if (pathname === "/change-password") return response;
+    if (isApi) {
+      return withCookies(
+        getResponse(),
+        NextResponse.json({ ok: false, error: "Change your password before using admin tools." }, { status: 403 }),
+      );
+    }
+    if (pathname === "/change-password") return getResponse();
     const change = request.nextUrl.clone();
     change.pathname = "/change-password";
     change.search = "";
-    return withCookies(response, NextResponse.redirect(change));
+    return withCookies(getResponse(), NextResponse.redirect(change));
   }
 
   if (pathname === "/login") {
     const home = request.nextUrl.clone();
     home.pathname = "/";
     home.search = "";
-    return withCookies(response, NextResponse.redirect(home));
+    return withCookies(getResponse(), NextResponse.redirect(home));
   }
 
-  return response;
+  return getResponse();
 }
 
 export const config = {
