@@ -37,26 +37,19 @@ export async function loadStudentProfile(userId: string): Promise<
   };
 }
 
-export async function clearStudentMustChangePassword(
-  userId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function clearStudentMustChangePassword(): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("students")
-    .update({ must_change_password: false })
-    .eq("auth_user_id", userId)
-    .select("student_number")
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("clear_student_must_change_password");
 
   if (error) {
-    logSupabaseError("students.update must_change_password", error, { userId });
+    logSupabaseError("rpc.clear_student_must_change_password", error);
     return { ok: false, error: formatDbError("Could not update student profile:", error) };
   }
-  if (!data?.student_number) {
-    console.error("[SmartQA] students.update returned no row", { userId });
+  if (!data) {
+    console.error("[SmartQA] clear_student_must_change_password returned no student_number");
     return {
       ok: false,
-      error: "Could not clear the must-change-password flag. Check RLS policies on public.students.",
+      error: "Could not clear the must-change-password flag: no student row is linked to this account.",
     };
   }
   return { ok: true };

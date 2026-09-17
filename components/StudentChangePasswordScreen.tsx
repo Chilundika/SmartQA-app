@@ -84,7 +84,7 @@ export default function StudentChangePasswordScreen() {
       return;
     }
 
-    const cleared = await clearStudentMustChangePassword(userData.user.id);
+    const cleared = await clearStudentMustChangePassword();
     if (!cleared.ok) {
       setSubmitting(false);
       setError(cleared.error);
