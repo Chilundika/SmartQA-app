@@ -419,6 +419,14 @@ create table learning_materials (
   content_or_url text not null,
   created_at timestamptz not null default now()
 );
+
+-- Audit trail for admin-triggered student password resets (§21)
+create table password_resets (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid references admins(id) not null,
+  student_number text references students(student_number) not null,
+  reset_at timestamptz not null default now()
+);
 ```
 
 **Row-Level Security (RLS) is mandatory, not optional**, before any student-facing route goes live:
@@ -457,9 +465,10 @@ create table learning_materials (
 
 - Accessible from the admin dashboard: an input for **Student Number**, a "Proceed Reset" button.
 - On submit: look up the student, display their full name and Student Number for confirmation ("Are you sure you want to reset the password for [Name], [Student Number]?").
-- On confirmation: set `password_hash` back to the hashed default password and `must_change_password` back to true.
+- On confirmation: this must go through a server-side route using the **service role key** (same pattern as the bulk account sync in §20.2) — since passwords are managed by Supabase Auth, not a `password_hash` column, resetting means calling Supabase Auth's admin API to set that student's auth account password back to the default (`DEFAULT_STUDENT_PASSWORD`), then setting `must_change_password` back to true on their `students` row.
+- This route must itself verify the caller is an authenticated admin, same as the sync-accounts route — it must never be callable by a student or an anonymous request.
 - Show a clear success message once done ("Password reset. [Name] will be prompted to set a new password on next login.").
-- This action should be logged (who reset which student's password, and when) for accountability — a simple `password_resets` audit table (admin_id, student_number, reset_at) is enough for v1.
+- This action must be logged for accountability — insert a row into the `password_resets` audit table (admin_id, student_number, reset_at) on every reset, without exception.
 
 ## 22. Student-Learn Section
 

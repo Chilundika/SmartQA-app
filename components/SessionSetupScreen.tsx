@@ -8,6 +8,7 @@ import FileUploader from "@/components/FileUploader";
 import StudentPreviewTable from "@/components/StudentPreviewTable";
 import QuestionPreviewTable from "@/components/QuestionPreviewTable";
 import RollCallLists from "@/components/RollCallLists";
+import ResetStudentPasswordSection from "@/components/ResetStudentPasswordSection";
 import SoundToggle from "@/components/SoundToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import { applyConfirmedCountdownToAllSessions, readGlobalCountdownSeconds } from "@/lib/countdown";
@@ -466,6 +467,8 @@ export default function SessionSetupPage() {
             </p>
           )}
         </div>
+
+        <ResetStudentPasswordSection />
 
         {/* Previous sessions */}
         <section className="mt-12 border-t border-zinc-200 pt-8">
