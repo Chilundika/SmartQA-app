@@ -1,4 +1,4 @@
-type AuthErrorLike = { name?: string; message?: string; code?: string } | null | undefined;
+type AuthErrorLike = { name?: string; message?: string; code?: string; details?: string } | null | undefined;
 
 export function isStaleAuthError(error: AuthErrorLike): boolean {
   if (!error) return false;
@@ -11,6 +11,16 @@ export function isStaleAuthError(error: AuthErrorLike): boolean {
     /invalid refresh token|refresh token not found|session from session_id claim in jwt does not exist/i.test(
       message,
     )
+  );
+}
+
+/** Transient network failure talking to Supabase (timeouts, DNS, offline). Not an auth/credential error. */
+export function isRetryableNetworkError(error: AuthErrorLike): boolean {
+  if (!error) return false;
+  if (error.name === "AuthRetryableFetchError") return true;
+  const blob = `${error.name ?? ""} ${error.message ?? ""} ${error.details ?? ""} ${error.code ?? ""}`;
+  return /fetch failed|failed to fetch|connect.?timeout|UND_ERR_CONNECT_TIMEOUT|AuthRetryableFetchError/i.test(
+    blob,
   );
 }
 

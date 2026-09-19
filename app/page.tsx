@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import LandingScreen from "@/components/LandingScreen";
 import SessionSetupPage from "@/components/SessionSetupScreen";
-import { isStaleAuthError, suppressStaleAuthConsole } from "@/lib/auth/sessionErrors";
+import { isRetryableNetworkError, isStaleAuthError, suppressStaleAuthConsole } from "@/lib/auth/sessionErrors";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 
@@ -17,6 +17,13 @@ export default async function HomePage() {
   try {
     const result = await supabase.auth.getUser();
     user = result.data.user;
+    if (result.error && isRetryableNetworkError(result.error)) {
+      console.warn("[SmartQA] home getUser: Supabase unreachable", {
+        message: result.error.message,
+        name: result.error.name,
+      });
+      return <LandingScreen />;
+    }
     if (result.error && !isStaleAuthError(result.error)) {
       console.error("[SmartQA] home getUser", {
         message: result.error.message,

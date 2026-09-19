@@ -2,9 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { supabaseAnonKey, supabaseUrl } from "./env.ts";
-import { isStaleAuthError, suppressStaleAuthConsole } from "../auth/sessionErrors.ts";
+import { isRetryableNetworkError, isStaleAuthError, suppressStaleAuthConsole } from "../auth/sessionErrors.ts";
 
-export { isStaleAuthError, suppressStaleAuthConsole };
+export { isRetryableNetworkError, isStaleAuthError, suppressStaleAuthConsole };
 
 export function hasSupabaseAuthCookie(request: NextRequest): boolean {
   return request.cookies.getAll().some((cookie) => cookie.name.startsWith("sb-"));

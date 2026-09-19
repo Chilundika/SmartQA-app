@@ -5,6 +5,7 @@ import {
   clearSupabaseAuthCookies,
   createMiddlewareClient,
   hasSupabaseAuthCookie,
+  isRetryableNetworkError,
   isStaleAuthError,
   suppressStaleAuthConsole,
   withCookies,
@@ -20,7 +21,7 @@ function redirectTo(request: NextRequest, response: NextResponse, pathname: stri
 async function studentMustChangePassword(
   supabase: Awaited<ReturnType<typeof createMiddlewareClient>>["supabase"],
   userId: string,
-): Promise<boolean> {
+): Promise<boolean | "unreachable"> {
   const { data: flag, error: flagError } = await supabase.rpc("student_must_change_password");
   if (!flagError) return Boolean(flag);
 
@@ -30,6 +31,7 @@ async function studentMustChangePassword(
     details: flagError.details,
     hint: flagError.hint,
   });
+  if (isRetryableNetworkError(flagError)) return "unreachable";
 
   const { data: row, error: rowError } = await supabase
     .from("students")
@@ -43,6 +45,7 @@ async function studentMustChangePassword(
       details: rowError.details,
       hint: rowError.hint,
     });
+    if (isRetryableNetworkError(rowError)) return "unreachable";
   }
   return Boolean(row?.must_change_password);
 }
@@ -60,6 +63,12 @@ export async function middleware(request: NextRequest) {
       if (userError && isStaleAuthError(userError)) {
         user = null;
         clearSupabaseAuthCookies(request, getResponse());
+      } else if (userError && isRetryableNetworkError(userError)) {
+        console.warn("[SmartQA] middleware getUser: Supabase unreachable", {
+          message: userError.message,
+          name: userError.name,
+        });
+        return getResponse();
       } else if (userError) {
         console.error("[SmartQA] middleware getUser", {
           message: userError.message,
@@ -95,6 +104,7 @@ export async function middleware(request: NextRequest) {
       details: adminError.details,
       hint: adminError.hint,
     });
+    if (isRetryableNetworkError(adminError)) return getResponse();
   }
 
   if (isAdmin) {
@@ -106,6 +116,7 @@ export async function middleware(request: NextRequest) {
         details: flagError.details,
         hint: flagError.hint,
       });
+      if (isRetryableNetworkError(flagError)) return getResponse();
     }
 
     if (mustChange) {
@@ -136,6 +147,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const mustChange = await studentMustChangePassword(supabase, user.id);
+  if (mustChange === "unreachable") return getResponse();
   if (mustChange) {
     if (pathname === "/student/change-password") return getResponse();
     return redirectTo(request, getResponse(), "/student/change-password");
